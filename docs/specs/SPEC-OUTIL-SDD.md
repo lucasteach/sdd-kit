@@ -175,31 +175,36 @@ Trois pièces :
 
 ### Annexe A : Spécification d'UI de la CLI (ASCII, normative P1-P2)
 
+Sortie attendue de `sdd status` (format exact, caractères box-drawing) :
+
 ```
-lucas@dev:~/projets/portail-citoyen$ sdd status
+lucas@dev:~/projets/mon-projet$ sdd status
 ┌──────────────────────────────────────────────────────────────┐
-│  SDD-Kit · portail-citoyen            doctrine v1.3 (pin)    │
+│  SDD-Kit · mon-projet                 doctrine v1.0 (pin)    │
 ├──────────────────────────────────────────────────────────────┤
 │  SPECS            4   Brouillon 1 · Approuvée 2 · En phase 1 │
 │  DÉCISIONS        9   ratifiée 6 · différée 2 · ouverte 1    │
 │  BACKLOG          8   ouvert 5 · clos 3                      │
 │  TÂCHES BORNÉES  12   vertes 11 · rouges 1                   │
 ├──────────────────────────────────────────────────────────────┤
-│  EN VOL   SPEC-VIZ-LIGNAGE · P1 (GhLineageGalaxy)  ◐ 60 %    │
-│  JALON    P2 — galaxie en production                         │
+│  EN VOL   SPEC-EXEMPLE · P1 (Composant X)          ◐ 60 %    │
+│  JALON    P2 — intégration en production                     │
 └──────────────────────────────────────────────────────────────┘
+```
 
-lucas@dev:~/projets/portail-citoyen$ sdd lint
+Sortie attendue de `sdd lint` (format exact) :
+
+```
+lucas@dev:~/projets/mon-projet$ sdd lint
 ✖ SDD-L003  référence fantasma
-            AGENT_STATE.md:12 cite SPEC-OUTIL-SDD.md —
+            AGENT_STATE.md:12 cite SPEC-INEXISTANTE.md —
             absente de docs/specs/
-✖ SDD-L002  décision sans statut : D2 (SPEC-VIZ-LIGNAGE)
+✖ SDD-L002  décision sans statut : D2 (SPEC-EXEMPLE)
 ✔ 41 règles OK · 2 erreurs · 0 waivers
 ```
 
-Ce bloc ASCII est **normatif** pour P1-P2 : forme exacte attendue
-de `sdd status` et `sdd lint`. Toute divergence de format est une
-régression de l'outil.
+Ces blocs ASCII sont **normatifs** : forme exacte attendue. Toute
+divergence de format est une régression de l'outil.
 
 ### Annexe B : Vision tableau de bord web (v3, non normative)
 
@@ -213,7 +218,7 @@ avant P4, et seulement si le dogfooding démontre l'utilité.
 | Phase | Contenu | Jalon visible | Statut |
 |-------|---------|---------------|--------|
 | P1 | Doctrine pack + `sdd init` + `sdd new` (scaffold) | premier projet SDD via CLI | **approuvée 16/09** |
-| P2 | `sdd lint` (règles L001-L007) + `sdd status` (ASCII) | l'outil arbitre son propre repo | à approuver |
+| P2 | `sdd lint` (règles L001-L007) + `sdd status` (ASCII) | l'outil arbitre son propre repo | **approuvée 16/09** |
 | P3 | `sdd decide` + `sdd trace` + `sdd agent-brief` | contrat humain↔agent généré | à approuver |
 | P4 | `sdd adopt` (brownfield) + CI gate + dogfooding complet | la doctrine se défend seule | à approuver |
 

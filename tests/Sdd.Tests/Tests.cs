@@ -14,6 +14,7 @@ public static class Tests
 
     public static int Main()
     {
+        string startup = Directory.GetCurrentDirectory();
         string sandbox = Path.Combine(Path.GetTempPath(), $"sdd-tests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(sandbox);
 
@@ -25,6 +26,16 @@ public static class Tests
             Test_New_Cree_Spec_Complete(sandbox);
             Test_New_Necrase_Pas_Et_Idempotence_AgentState(sandbox);
             Test_Args_Invalides(sandbox);
+            Test_L001_ReqSansGwt(sandbox);
+            Test_L002_DecisionSansStatut(sandbox);
+            Test_L003_RefFantasma_Et_Waiver(sandbox);
+            Test_L004_BacklogSansOrigine(sandbox);
+            Test_L005_PhaseSansJalon(sandbox);
+            Test_L006_MagicNumbers(sandbox);
+            Test_L007_SansHistorique(sandbox);
+            Test_Lint_Propre_Exit0(sandbox);
+            Test_Status_ByteIdentique_AnnexeA(sandbox);
+            Test_Dogfood_SddKit(startup);
         }
         finally
         {
@@ -204,5 +215,227 @@ public static class Tests
         Check(RunCli(dir, "init", "--projet", "../traversee").exit != 0, "nom avec chemin → rejeté");
         Check(RunCli(dir, "new", "minuscule").exit != 0, "FAMILLE non conformes → rejetée");
         Check(RunCli(dir, "invente").exit != 0, "sous-commande inconnue → erreur");
+    }
+
+    // ---------- fixtures P2 ----------
+
+    private static string MakeFixture(string sandbox, string label, string specContent,
+        string backlog = "## Entrées\n\n- [ ] BUK-001 (2026-09-15, origine : test) truc → P1\n",
+        string? tomlExtra = null)
+    {
+        string dir = FreshProject(sandbox, label);
+        Directory.CreateDirectory(Path.Combine(dir, "docs", "specs"));
+        File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-T.md"), specContent);
+        File.WriteAllText(Path.Combine(dir, "docs", "BACKLOG.md"),
+            "# BACKLOG — t\n\n## Entrées\n\n" + (backlog.StartsWith("## Entrées") ? backlog[11..] : backlog));
+        File.WriteAllText(Path.Combine(dir, "docs", "AGENT_STATE.md"),
+            "# AGENT_STATE\n\n## État courant\n\n| Champ | Valeur |\n|---|---|\n| Spec de référence | — |\n");
+        File.WriteAllText(Path.Combine(dir, "sdd.toml"),
+            "[projet]\nnom = \"t\"\n\n[doctrine]\nversion = \"1.0\"\n" + (tomlExtra ?? ""));
+        return dir;
+    }
+
+    private static (int exit, string output) RunLint(string dir)
+    {
+        var buf = new StringWriter();
+        int code = Lint.Run(dir, buf);
+        return (code, buf.ToString().Replace("\r\n", "\n"));
+    }
+
+    private static void Test_L001_ReqSansGwt(string sandbox)
+    {
+        Console.WriteLine("T7 — SDD-L001 : REQ sans GWT");
+        string dir = MakeFixture(sandbox, "l001",
+            "# Spec\n## Historique\n- v1.0 (2026-09-15) : x\n\n## Exigences\n\n### REQ-T001 : x\n**Étant donné** a\n**Quand** b\n");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 1, "exit 1 (erreur bloquante)");
+        Check(output.Contains("SDD-L001", StringComparison.Ordinal) && output.Contains("manque « Alors »", StringComparison.Ordinal),
+              "L001 signale Alors manquant");
+        Check(output.Contains("1 erreurs", StringComparison.Ordinal), "compteur erreurs = 1");
+    }
+
+    private static void Test_L002_DecisionSansStatut(string sandbox)
+    {
+        Console.WriteLine("T8 — SDD-L002 : décision sans statut");
+        string dir = MakeFixture(sandbox, "l002",
+            "# Spec\n## Historique\n- v1.0 : x\n\n## Décisions\n\n- **D1** ratifiée — RATIFIÉE 16/09\n- **D2** sans rien\n");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 1, "exit 1");
+        Check(output.Contains("✖ SDD-L002  décision sans statut : D2 (SPEC-T)", StringComparison.Ordinal),
+              "format exact ligne D2 (SPEC-T)");
+    }
+
+    private static void Test_L003_RefFantasma_Et_Waiver(string sandbox)
+    {
+        Console.WriteLine("T9 — SDD-L003 : référence fantasma + waiver");
+        string spec = "# Spec\n## Historique\n- v1.0 : x\n\n## Notes\n\nVoir SPEC-FANTOME.md pour la suite.\n";
+        string dir = MakeFixture(sandbox, "l003", spec);
+        var (exit, output) = RunLint(dir);
+        Check(exit == 1, "sortie hors waiver → erreur");
+        Check(output.Contains("✖ SDD-L003  référence fantasma", StringComparison.Ordinal), "ligne règle");
+        Check(output.Contains("cite SPEC-FANTOME.md —", StringComparison.Ordinal), "ligne localisée (fichier:ligne)");
+        Check(output.Contains("absente de docs/specs/", StringComparison.Ordinal), "ligne détail 2");
+
+        string waivedDir = MakeFixture(sandbox, "l003-w", spec, tomlExtra:
+            "\n[[waiver]]\nregle = \"SDD-L003\"\nportee = \"docs/specs/SPEC-T.md\"\njustification = \" externe \"\n");
+        var (exit2, out2) = RunLint(waivedDir);
+        Check(exit2 == 0, "avec waiver → exit 0");
+        Check(out2.Contains("0 erreurs", StringComparison.Ordinal) && out2.Contains("1 waivers", StringComparison.Ordinal),
+              "0 erreurs · 1 waivers");
+    }
+
+    private static void Test_L004_BacklogSansOrigine(string sandbox)
+    {
+        Console.WriteLine("T10 — SDD-L004 : entrée BACKLOG sans origine ni statut");
+        string dir = MakeFixture(sandbox, "l004",
+            "# Spec\n## Historique\n- v1.0 : x\n",
+            backlog: "- [ ] BUK-999 — idée floue sans date\n- [ ] BUK-001 (2026-09-15, origine : ok) correcte → P1\n");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 1, "exit 1");
+        Check(output.Contains("SDD-L004", StringComparison.Ordinal) && output.Contains("BUK-999", StringComparison.Ordinal),
+              "L004 vise BUK-999 seulement");
+        Check(output.Contains("1 erreurs", StringComparison.Ordinal), "BUK-001 conformne non compte");
+    }
+
+    private static void Test_L005_PhaseSansJalon(string sandbox)
+    {
+        Console.WriteLine("T11 — SDD-L005 : phase sans jalon visible");
+        string dir = MakeFixture(sandbox, "l005",
+            "# Spec\n## Historique\n- v1.0 : x\n\n## Phases\n\n| Phase | Contenu | Jalon visible | Statut |\n|---|---|---|---|\n| P1 | a |  | ratifiée |\n| P2 | b | jalon ok | à approuver |\n");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 1, "exit 1");
+        Check(output.Contains("SDD-L005", StringComparison.Ordinal) && output.Contains("P1 —", StringComparison.Ordinal),
+              "L005 vise la ligne P1");
+    }
+
+    private static void Test_L006_MagicNumbers(string sandbox)
+    {
+        Console.WriteLine("T12 — SDD-L006 : magic numbers (warning)");
+        string dir = MakeFixture(sandbox, "l006",
+            "# Spec\n## Historique\n- v1.0 : x\n\n```csharp\nvar timeout = 86400;\nvar annee = 2026;\n```\n");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 0, "warning ne bloque pas (exit 0)");
+        Check(output.Contains("SDD-L006", StringComparison.Ordinal) && output.Contains("86400", StringComparison.Ordinal),
+              "L006 cite 86400");
+        Check(!output.Contains("2026 (", StringComparison.Ordinal), "années tolérées");
+        Check(output.Contains("1 warnings", StringComparison.Ordinal), "compteur warnings");
+    }
+
+    private static void Test_L007_SansHistorique(string sandbox)
+    {
+        Console.WriteLine("T13 — SDD-L007 : spec sans Historique (warning)");
+        string dir = MakeFixture(sandbox, "l007", "# Spec\n\n## Propos\n\nx\n");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 0, "exit 0");
+        Check(output.Contains("SDD-L007", StringComparison.Ordinal), "L007 signalée en warning");
+    }
+
+    private static void Test_Lint_Propre_Exit0(string sandbox)
+    {
+        Console.WriteLine("T14 — projet généré propre : 0 erreurs, format résumé");
+        string dir = FreshProject(sandbox, "lint-clean");
+        RunCli(dir, "init", "--projet", "t");
+        RunCli(dir, "new", "EXEMPLE");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 0, "exit 0");
+        Check(output.Contains("0 erreurs", StringComparison.Ordinal) && output.Contains("0 waivers", StringComparison.Ordinal),
+              "résumé 0 erreurs · 0 waivers");
+        Check(!output.Contains("warnings", StringComparison.Ordinal), "pas de champ warnings si 0 (conformité Annexe A)");
+    }
+
+    private static void Test_Status_ByteIdentique_AnnexeA(string sandbox)
+    {
+        Console.WriteLine("T15 — sdd status byte-identique à Annexe A (fixture)")
+            ;
+        string dir = FreshProject(sandbox, "status-norm");
+        Directory.CreateDirectory(Path.Combine(dir, "docs", "specs"));
+        File.WriteAllText(Path.Combine(dir, "sdd.toml"),
+            "[projet]\nnom = \"mon-projet\"\n\n[doctrine]\nversion = \"1.0\"\n");
+
+        string Deco(string name, string statut, string decs) =>
+            $"# Spec {name}\n**Statut** : {statut}\n\n## Historique\n- v1.0 (2026-09-15) : x\n\n## Décisions\n\n{decs}\n";
+        File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-A.md"),
+            Deco("A", "Approuvée", "- **D1** a — RATIFIÉE\n- **D2** b — RATIFIÉE\n- **D3** c — différée (P3)\n"));
+        File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-B.md"),
+            Deco("B", "Approuvée", "- **D1** a — RATIFIÉE\n- **D2** b — RATIFIÉE\n- **D3** c — différée (P4)\n"));
+        File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-C.md"),
+            Deco("C", "Brouillon", "- **D1** a — RATIFIÉE\n- **D2** b — RATIFIÉE\n"));
+        File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-EXEMPLE.md"),
+            Deco("EXEMPLE", "Brouillon", "- **D1** z — ouverte\n")
+            + "\n## Phases\n\n| Phase | Contenu | Jalon visible | Statut |\n|---|---|---|---|\n"
+            + "| P1 | Composant X | livraison composant | **approuvée** |\n"
+            + "| P2 | Intégration | intégration en production | à approuver |\n");
+
+        File.WriteAllText(Path.Combine(dir, "docs", "BACKLOG.md"),
+            "# BACKLOG\n\n## Entrées\n\n"
+            + string.Concat(Enumerable.Range(1, 5).Select(i => $"- [ ] BUK-00{i} (2026-09-15, origine : t) x → P{i}\n"))
+            + string.Concat(Enumerable.Range(6, 3).Select(i => $"- [x] BUK-00{i} (2026-09-15, origine : t) y → CLOS\n")));
+
+        File.WriteAllText(Path.Combine(dir, "docs", "AGENT_STATE.md"),
+            """
+            # AGENT_STATE — mon-projet
+
+            ## État courant
+
+            | Champ | Valeur |
+            |---|---|
+            | Spec de référence | SPEC-EXEMPLE |
+            | Phase active | P1 |
+            | Progression | 60 % |
+
+            ## Tâches bornées
+
+            """ + string.Concat(Enumerable.Range(1, 11).Select(_ => "- [x] t\n"))
+            + "- [ ] t-rouge\n");
+
+        var buf = new StringWriter();
+        Status.Run(dir, buf);
+        string[] rendered = buf.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
+
+        string[] sample = Sample("status-sample.txt"); // lignes 1..11 = box complet
+        Check(rendered.Length == sample.Length, $"nombre de lignes {rendered.Length} == {sample.Length}");
+        bool identical = rendered.Length == sample.Length;
+        for (int i = 0; identical && i < sample.Length; i++)
+        {
+            if (rendered[i] != sample[i])
+            {
+                identical = false;
+                Console.WriteLine($"    ligne {i + 1} diffère :\n      rendu : «{rendered[i]}»\n      attendu : «{sample[i]}»");
+            }
+        }
+
+        Check(identical, "status byte-identique à l'Annexe A");
+    }
+
+    private static void Test_Dogfood_SddKit(string startup)
+    {
+        Console.WriteLine("T16 — dogfooding : lint propre sur le repo sdd-kit lui-même");
+        string repoSpecs = Path.Combine(startup, "docs", "specs", "SPEC-OUTIL-SDD.md");
+        if (!File.Exists(repoSpecs))
+        {
+            Console.WriteLine("  (non exécuté hors racine du repo — lancer `dotnet run` depuis ~/sdd-kit)");
+            return;
+        }
+
+        var (exit, output) = RunLint(startup);
+        Check(exit == 0, "sdd lint repo → exit 0 (0 erreurs)");
+        Check(output.Contains("0 erreurs", StringComparison.Ordinal), "0 erreurs");
+        Check(output.Contains("1 waivers", StringComparison.Ordinal), "1 waiver justifié (SPEC-CAS-VIZ-LIGNAGE externe)");
+
+        var buf = new StringWriter();
+        Status.Run(startup, buf);
+        string[] lines = buf.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
+        Check(lines[0].StartsWith('┌') && lines[^1].StartsWith('└'), "status repo : box complet");
+        Check(lines.All(l => l.Length == 64), "toutes les lignes du box à 64 caractères");
+        Check(lines.Any(l => l.Contains("◐ 50 %", StringComparison.Ordinal)),
+              "progression réelle : 2 phases approuvées / 4 → ◐ 50 % (« à approuver » ne compte pas)");
+    }
+
+    private static string[] Sample(string resource)
+    {
+        using Stream s = typeof(Tests).Assembly.GetManifestResourceStream(
+            typeof(Tests).Assembly.GetManifestResourceNames().First(n => n.EndsWith(resource, StringComparison.Ordinal)))!;
+        using var reader = new StreamReader(s);
+        return reader.ReadToEnd().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
     }
 }

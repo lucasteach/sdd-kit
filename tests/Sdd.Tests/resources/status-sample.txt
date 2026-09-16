@@ -1,0 +1,11 @@
+┌──────────────────────────────────────────────────────────────┐
+│  SDD-Kit · mon-projet                 doctrine v1.0 (pin)    │
+├──────────────────────────────────────────────────────────────┤
+│  SPECS            4   Brouillon 1 · Approuvée 2 · En phase 1 │
+│  DÉCISIONS        9   ratifiée 6 · différée 2 · ouverte 1    │
+│  BACKLOG          8   ouvert 5 · clos 3                      │
+│  TÂCHES BORNÉES  12   vertes 11 · rouges 1                   │
+├──────────────────────────────────────────────────────────────┤
+│  EN VOL   SPEC-EXEMPLE · P1 (Composant X)          ◐ 60 %    │
+│  JALON    P2 — intégration en production                     │
+└──────────────────────────────────────────────────────────────┘

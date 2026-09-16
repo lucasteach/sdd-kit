@@ -1,0 +1,5 @@
+✖ SDD-L003  référence fantasma
+            AGENT_STATE.md:12 cite SPEC-INEXISTANTE.md —
+            absente de docs/specs/
+✖ SDD-L002  décision sans statut : D2 (SPEC-EXEMPLE)
+✔ 41 règles OK · 2 erreurs · 0 waivers

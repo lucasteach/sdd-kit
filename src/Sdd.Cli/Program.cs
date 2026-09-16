@@ -27,6 +27,8 @@ public static class Program
         {
             "init" => Init(args[1..]),
             "new" => New(args[1..]),
+            "lint" => Lint.Run(Directory.GetCurrentDirectory()),
+            "status" => Status.Run(Directory.GetCurrentDirectory()),
             "help" or "--help" or "-h" => PrintUsage(),
             _ => UnknownCommand(args[0]),
         };

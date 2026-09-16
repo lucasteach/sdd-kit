@@ -14,4 +14,9 @@
     <ProjectReference Include="../../src/Sdd.Cli/Sdd.Cli.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <EmbeddedResource Include="resources/status-sample.txt" />
+    <EmbeddedResource Include="resources/lint-sample.txt" />
+  </ItemGroup>
+
 </Project>

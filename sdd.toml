@@ -1,0 +1,12 @@
+# sdd.toml — métadonnées du projet sdd-kit (dogfooding : le repo applique ses propres regles)
+[projet]
+nom = "sdd-kit"
+
+[doctrine]
+version = "1.0"
+
+# Registre de waivers (justification ecrite — REQ-CLI04, niveau « waivable »)
+[[waiver]]
+regle = "SDD-L003"
+portee = "docs/specs/SPEC-OUTIL-SDD.md"
+justification = "SPEC-CAS-VIZ-LIGNAGE vit dans le repo du cas d'etude projet-source, hors de ce repo ; la note croisee est documentaire et volontairement non resoluble localement."
