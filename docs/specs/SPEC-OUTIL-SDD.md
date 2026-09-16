@@ -10,8 +10,7 @@
 
 ## Propos
 
-Fournir aux équipes de la l'organisation (et à tout projet
-similaire) un **kit doctrine + CLI** qui transforme la méthodologie
+Fournir aux équipes de tout projet un **kit doctrine + CLI** qui transforme la méthodologie
 SDD construite sur un projet-source en infrastructure exécutable : templates
 canoniques, arbitre de règles, machine à états, générateur de briefs
 agent bornés, et onramp pour projets existants.
@@ -232,7 +231,7 @@ avant P4, et seulement si le dogfooding démontre l'utilité.
 
 - **Sur projet-source** : aucun — projet-source reste le cas d'étude, pas une
   dépendance de la CLI. Migration optionnelle si l'owner le décide.
-- **Sur l'équipe Ville** : onboarding d'un nouveau projet réduit de
+- **Sur l'équipe** : onboarding d'un nouveau projet réduit de
   plusieurs semaines à une session SDD-Kit.
 - **Sur les agents** : tout agent sur projet SDD-Kit lit
   AGENT_STATE et comprend l'état sans contexte antérieur ; le brief
@@ -240,7 +239,7 @@ avant P4, et seulement si le dogfooding démontre l'utilité.
 
 ## Notes croisées
 
-- projet-source (le datahub municipal) est le **cas d'étude #1** : la doctrine
+- projet-source est le **cas d'étude #1** : la doctrine
   est extraite de son historique de 50+ sessions.
 - SPEC-CAS-VIZ-LIGNAGE contient des décisions ratifiées — exemple
   concret d'usage futur de REQ-CLI06.
