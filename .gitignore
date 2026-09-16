@@ -1,0 +1,5 @@
+# Artefacts de build .NET (jamais commités : tree propre)
+bin/
+obj/
+*.user
+nupkg/
