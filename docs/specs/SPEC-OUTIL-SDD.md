@@ -175,3 +175,85 @@ Trois pièces :
 3. **CI gate** : workflow YAML standard, appel à `sdd lint --ci`.
 
 ### Annexe A : Spécification d'UI de la CLI (ASCII, normative P1-P2)
+
+```
+lucas@dev:~/projets/portail-citoyen$ sdd status
+┌──────────────────────────────────────────────────────────────┐
+│  SDD-Kit · portail-citoyen            doctrine v1.3 (pin)    │
+├──────────────────────────────────────────────────────────────┤
+│  SPECS            4   Brouillon 1 · Approuvée 2 · En phase 1 │
+│  DÉCISIONS        9   ratifiée 6 · différée 2 · ouverte 1    │
+│  BACKLOG          8   ouvert 5 · clos 3                      │
+│  TÂCHES BORNÉES  12   vertes 11 · rouges 1                   │
+├──────────────────────────────────────────────────────────────┤
+│  EN VOL   SPEC-VIZ-LIGNAGE · P1 (GhLineageGalaxy)  ◐ 60 %    │
+│  JALON    P2 — galaxie en production                         │
+└──────────────────────────────────────────────────────────────┘
+
+lucas@dev:~/projets/portail-citoyen$ sdd lint
+✖ SDD-L003  référence fantasma
+            AGENT_STATE.md:12 cite SPEC-OUTIL-SDD.md —
+            absente de docs/specs/
+✖ SDD-L002  décision sans statut : D2 (SPEC-VIZ-LIGNAGE)
+✔ 41 règles OK · 2 erreurs · 0 waivers
+```
+
+Ce bloc ASCII est **normatif** pour P1-P2 : forme exacte attendue
+de `sdd status` et `sdd lint`. Toute divergence de format est une
+régression de l'outil.
+
+### Annexe B : Vision tableau de bord web (v3, non normative)
+
+Dashboard HTML statique générable depuis le repo : matrice REQ →
+commits, chaleur du backlog, état global en une page, zéro
+authentification. **Non normatif en v1** : aucune implémentation
+avant P4, et seulement si le dogfooding démontre l'utilité.
+
+## Phases d'implémentation
+
+| Phase | Contenu | Jalon visible | Statut |
+|-------|---------|---------------|--------|
+| P1 | Doctrine pack + `sdd init` + `sdd new` (scaffold) | premier projet SDD via CLI | **approuvée 16/09** |
+| P2 | `sdd lint` (règles L001-L007) + `sdd status` (ASCII) | l'outil arbitre son propre repo | à approuver |
+| P3 | `sdd decide` + `sdd trace` + `sdd agent-brief` | contrat humain↔agent généré | à approuver |
+| P4 | `sdd adopt` (brownfield) + CI gate + dogfooding complet | la doctrine se défend seule | à approuver |
+
+## Décisions
+
+- **D1** Nom public : repo `sdd-kit`, commande `sdd` — **RATIFIÉE 16/09**
+- **D2** Distribution : `dotnet tool install -g sdd` — **RATIFIÉE 16/09**
+- **D3** Langue des templates : FR par défaut, EN optionnelle v1 — **RATIFIÉE 16/09**
+- **D4** Sévérité des règles : telles que REQ-CLI04 — **RATIFIÉE 16/09**
+- **D5** Versionado de doctrine : semver classique — **RATIFIÉE 16/09**
+- **D6** Publication : feed interne de l'organisation v1 ; nuget.org conditionnel v2 — **RATIFIÉE 16/09**
+- **D7** Licence : MIT — **RATIFIÉE 16/09**
+
+## Impacts
+
+- **Sur projet-source** : aucun — projet-source reste le cas d'étude, pas une
+  dépendance de la CLI. Migration optionnelle si l'owner le décide.
+- **Sur l'équipe Ville** : onboarding d'un nouveau projet réduit de
+  plusieurs semaines à une session SDD-Kit.
+- **Sur les agents** : tout agent sur projet SDD-Kit lit
+  AGENT_STATE et comprend l'état sans contexte antérieur ; le brief
+  généré élimine le réapprentissage à chaque session.
+
+## Notes croisées
+
+- projet-source (le datahub municipal) est le **cas d'étude #1** : la doctrine
+  est extraite de son historique de 50+ sessions.
+- SPEC-CAS-VIZ-LIGNAGE contient des décisions ratifiées — exemple
+  concret d'usage futur de REQ-CLI06.
+- ADR-026 (tokens CSS) est un exemple de règle transposable en
+  règle SDD-L* (zéro magic number).
+
+## Limitations connues
+
+- La CLI ne génère pas de prose de spec (Propos, Portée, etc.) —
+  domaine humain.
+- L'audit brownfield (REQ-CLI02) a une précision limitée aux
+  patterns connus ; faux négatifs possibles sur code exotique.
+- Le tableau de bord v3 est une vision, pas un engagement.
+- La traçabilité REQ→commits exige une convention de commit-msg ;
+  sans convention adoptée, `sdd trace` retourne vide.
+
