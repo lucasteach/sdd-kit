@@ -438,8 +438,8 @@ public static class Tests
         string[] lines = buf.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
         Check(lines[0].StartsWith('┌') && lines[^1].StartsWith('└'), "status repo : box complet");
         Check(lines.All(l => l.Length == 64), "toutes les lignes du box à 64 caractères");
-        Check(lines.Any(l => l.Contains("◐ 75 %", StringComparison.Ordinal)),
-              "progression réelle : 3 phases approuvées (P1, P2, P4) / 4 → ◐ 75 % (« à approuver » ne compte pas)");
+        Check(lines.Any(l => l.Contains("◐ 100 %", StringComparison.Ordinal)),
+              "progression réelle : P1–P4 toutes approuvées (P3 ratifiée par l'owner 16/09) → ◐ 100 %");
     }
 
     // ---------- P3 : decide / trace / agent-brief ----------

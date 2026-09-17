@@ -219,7 +219,7 @@ avant P4, et seulement si le dogfooding démontre l'utilité.
 |-------|---------|---------------|--------|
 | P1 | Doctrine pack + `sdd init` + `sdd new` (scaffold) | premier projet SDD via CLI | **approuvée 16/09** |
 | P2 | `sdd lint` (règles L001-L007) + `sdd status` (ASCII) | l'outil arbitre son propre repo | **approuvée 16/09** |
-| P3 | `sdd decide` + `sdd trace` + `sdd agent-brief` | contrat humain↔agent généré | à approuver |
+| P3 | `sdd decide` + `sdd trace` + `sdd agent-brief` | contrat humain↔agent généré | **approuvée 16/09** |
 | P4 | `sdd adopt` (brownfield) + CI gate + dogfooding complet | la doctrine se défend seule | **approuvée 16/09** |
 
 ## Décisions
