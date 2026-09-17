@@ -7,7 +7,7 @@ namespace Sdd;
 /// <summary>
 /// sdd decide — REQ-CLI06 : ratifie une decision (statut + date), append
 /// au Historique (bump version mineure) et genere un commit atomique.
-/// Le texte de la decision vient de l'owner ; la CLI n'invente jamais de prose.
+/// Le texte de la decision vient du responsable ; la CLI n'invente jamais de prose.
 /// </summary>
 public static class Decide
 {
@@ -94,7 +94,7 @@ public static class Decide
             return 0;
         }
 
-        // 1) mise a jour de la ligne de decision (corps = texte owner, statut = ratifiee + date)
+        // 1) mise a jour de la ligne de decision (corps = texte du responsable, statut = ratifiee + date)
         string now = DateTime.Now.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
         string shortDate = DateTime.Now.ToString("dd/MM", CultureInfo.InvariantCulture);
         string newLine = $"- **{dId}** {body} — **RATIFIÉE {shortDate}**";
@@ -112,7 +112,7 @@ public static class Decide
             spec.Lines[vIdx] = Regex.Replace(spec.Lines[vIdx], @"\d+\.\d+", newVer);
         }
 
-        string histEntry = $"- v{(newVer.Length > 0 ? newVer : "x.y")} ({now}) : décision {dId} ratifiée par l'owner";
+        string histEntry = $"- v{(newVer.Length > 0 ? newVer : "x.y")} ({now}) : décision {dId} ratifiée par le responsable";
         if (histLine >= 0)
         {
             int end = spec.SectionEnd(histLine + 1);
@@ -149,7 +149,7 @@ public static class Decide
             return 1;
         }
 
-        var commit = Git.Run(root, "commit", "--only", "-m", subject, "-m", $"Décision owner : {body}", "--", rel);
+        var commit = Git.Run(root, "commit", "--only", "-m", subject, "-m", $"Décision du responsable : {body}", "--", rel);
         if (commit.exit != 0)
         {
             writer.WriteLine($"✖ git commit a échoué :\n{commit.stderr.Trim()}");

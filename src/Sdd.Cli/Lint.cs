@@ -19,7 +19,7 @@ public static class Lint
     /// docs du projet audite ; le test de garde T27 l'utilise aussi.
     /// Pour etendre : ajouter le terme ici, un seul endroit.
     /// </summary>
-    public static readonly string[] LangBlacklist = { "pospuesta", "hallazgo", "hallazgos" };
+    public static readonly string[] LangBlacklist = { "pospuesta", "hallazgo", "hallazgos", "owner" };
 
     private static readonly Regex SpecToken = new(@"SPEC-[A-Z][A-Z0-9-]*", RegexOptions.Compiled);
     private static readonly string[] CodeFences =

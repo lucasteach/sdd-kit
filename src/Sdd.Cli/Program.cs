@@ -174,7 +174,7 @@ public static class Program
 
         Console.WriteLine();
         Console.WriteLine("Brouillon squelette : chaque [À RATIFIER] est du texte à écrire par l'humain, jamais par l'outil.");
-        Console.WriteLine($"Prochaine étape : ratification owner, puis commit « docs({famille.ToLowerInvariant()}): ... ».");
+        Console.WriteLine($"Prochaine étape : ratification par le responsable, puis commit « docs({famille.ToLowerInvariant()}): ... ».");
         return 0;
     }
 

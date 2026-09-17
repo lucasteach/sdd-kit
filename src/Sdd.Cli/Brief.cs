@@ -111,7 +111,7 @@ public static class Brief
             .Where(d => d.Text.Contains("RATIFIÉE", StringComparison.OrdinalIgnoreCase)
                         || d.Text.Contains("approuvée", StringComparison.OrdinalIgnoreCase))
             .ToList();
-        o.AppendLine("## Décisions owner déjà ratifiées (contraintes, pas des suggestions)");
+        o.AppendLine("## Décisions du responsable déjà ratifiées (contraintes, pas des suggestions)");
         o.AppendLine();
         if (decisions.Count > 0)
         {
@@ -146,7 +146,7 @@ public static class Brief
         o.AppendLine();
         o.AppendLine("## Validation");
         o.AppendLine();
-        o.AppendLine($"- {current.Jalon} — vérifiable par l'owner ; tests unitaires verts exigés.");
+        o.AppendLine($"- {current.Jalon} — vérifiable par le responsable ; tests unitaires verts exigés.");
         o.AppendLine($"- Après la tâche : `sdd lint` doit retourner 0 erreur sur le repo.");
 
         writer.Write(o.ToString());

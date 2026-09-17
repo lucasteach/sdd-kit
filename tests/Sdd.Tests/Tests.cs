@@ -441,7 +441,7 @@ public static class Tests
         Check(lines[0].StartsWith('┌') && lines[^1].StartsWith('└'), "status repo : box complet");
         Check(lines.All(l => l.Length == 64), "toutes les lignes du box à 64 caractères");
         Check(lines.Any(l => l.Contains("◐ 100 %", StringComparison.Ordinal)),
-              "progression réelle : P1–P4 toutes approuvées (P3 ratifiée par l'owner 16/09) → ◐ 100 %");
+              "progression réelle : P1–P4 toutes approuvées (P3 ratifiée par le responsable 16/09) → ◐ 100 %");
     }
 
     // ---------- P3 : decide / trace / agent-brief ----------
@@ -469,9 +469,9 @@ public static class Tests
 
         string spec = Read(Path.Combine(dir, "docs", "specs", "SPEC-PORTAIL-CITOYEN.md"));
         Check(spec.Contains("- **D1** Distribution par dotnet tool interne. — **RATIFIÉE ", StringComparison.Ordinal),
-              "ligne D1 = texte owner + RATIFIÉE + date");
+              "ligne D1 = texte du responsable + RATIFIÉE + date");
         Check(spec.Contains("**Version** : 1.1", StringComparison.Ordinal), "bump version mineure 1.0 → 1.1");
-        Check(Regex.IsMatch(spec, @"- v1\.1 \(\d{2}/\d{2}/\d{4}\) : décision D1 ratifiée par l'owner"),
+        Check(Regex.IsMatch(spec, @"- v1\.1 \(\d{2}/\d{2}/\d{4}\) : décision D1 ratifiée par le responsable"),
               "Historique appendu (dd/MM/yyyy)");
         Check(RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "x", "--ratifiee").exit == 0, "re-décide idempotent-ish (exit 0)");
         string log = Git.Run(dir, "log", "--format=%s").stdout;
@@ -681,8 +681,8 @@ public static class Tests
         Console.WriteLine("T25 — sdd --version / -v");
         string v1 = Capture(Directory.GetCurrentDirectory(), "--version");
         string v2 = Capture(Directory.GetCurrentDirectory(), "-v");
-        Check(v1.Contains("sdd 1.0.2", StringComparison.Ordinal), "--version → sdd 1.0.2");
-        Check(v2.Contains("sdd 1.0.2", StringComparison.Ordinal), "-v → sdd 1.0.2");
+        Check(v1.Contains("sdd 1.0.3", StringComparison.Ordinal), "--version → sdd 1.0.3");
+        Check(v2.Contains("sdd 1.0.3", StringComparison.Ordinal), "-v → sdd 1.0.3");
         Check(v1.Contains("doctrine v1.0", StringComparison.Ordinal), "pin doctrine affiché");
     }
 
@@ -724,13 +724,13 @@ public static class Tests
         }
 
         string dirDet = MakeFixture(sandbox, "l008",
-            "# Spec\n## Historique\n- v1.0 : x\n\n## Notes\n\nIdée pospuesta et un hallazgo isolé, plus des hallazgos divers.\n");
+            "# Spec\n## Historique\n- v1.0 : x\n\n## Notes\n\nIdée pospuesta et un hallazgo isolé, plus des hallazgos divers, ratifié par l'owner.\n");
         var (exit, output) = RunLint(dirDet);
         Check(exit == 0, "L008 est un warning : ne bloque pas");
         Check(output.Contains("SDD-L008", StringComparison.Ordinal)
               && output.Contains("langue non conforme au pin D3", StringComparison.Ordinal),
               "SDD-L008 signalé (un warning par terme présent)");
-        Check(output.Contains("3 warnings", StringComparison.Ordinal), "3 warnings (pospuesta, hallazgo, hallazgos — par terme, pas par occurrence)")
+        Check(output.Contains("4 warnings", StringComparison.Ordinal), "4 warnings (les quatre termes de la liste noire, par terme présent)")
             ;
     }
 

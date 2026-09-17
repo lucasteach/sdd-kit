@@ -1,12 +1,12 @@
 # Spécification : Outil SDD (méthodologie + CLI)
-**Version** : 1.1 (Brouillon — P1 approuvée par l'owner 2026-09-16)
+**Version** : 1.1 (Brouillon — P1 approuvée par le responsable 2026-09-16)
 **Statut** : Brouillon
 **Créée** : 2026-09-16
 **Responsable** : lucasteach
 
 ## Historique
 - v1.0 (16/09/2026) : Brouillon initial
-- v1.1 (16/09/2026) : D1-D7 ratifiées par l'owner
+- v1.1 (16/09/2026) : D1-D7 ratifiées par le responsable
 
 ## Propos
 
@@ -30,7 +30,7 @@ Deux publics :
   qui audite le projet, sème le backlog de ses invisibles, et
   produit les premiers Brouillons à partir des constats.
 
-Spécification **docs-only** : aucun code avant approbation owner.
+Spécification **docs-only** : aucun code avant approbation du responsable.
 
 ## Portée
 
@@ -40,7 +40,7 @@ Spécification **docs-only** : aucun code avant approbation owner.
   comme spec UI ; mockup dashboard comme vision v3 non normative).
 - **Exclus** : GUI v1 (maintien prématuré pour un outil de docs) ;
   génération automatique de prose de spec (Propos, Portée,
-  décisions owner — domaine humain) ; intégration spécifique à
+  décisions du responsable — domaine humain) ; intégration spécifique à
   projet-source (l'outil est agnostique ; projet-source est le cas d'étude).
 - **Frontière dure** : la CLI n'écrit jamais de prose de spec ;
   elle fournit squelette, arbitre et trace. Les décisions restent
@@ -49,14 +49,14 @@ Spécification **docs-only** : aucun code avant approbation owner.
 ## Contexte
 
 La méthodologie SDD a été construite empiriquement sur un projet-source en
-50+ sessions agent↔owner :
+50+ sessions agent↔responsable :
 
 - Spec avant code, Brouillon → ratification → tâches bornées
 - Commits propres avec hash et report
 - Décisions avec statut (ouverte / ratifiée / différée)
 - AGENT_STATE comme mémoire du repo
 - Backlog comme anti-oubli (BUX-*)
-- Validation visuelle owner comme test final
+- Validation visuelle du responsable comme test final
 - Couche d'honnêteté : zéro fausse confirmation
 
 Cette doctrine n'est documentée nulle part de façon portable. Sans
@@ -67,7 +67,7 @@ mal. SDD-Kit la cristallise.
 
 ### REQ-CLI01 : Initialisation de projet (init)
 **Étant donné** un répertoire vide ou un projet sans SDD
-**Quand** l'owner exécute `sdd init --projet <nom>`
+**Quand** le responsable exécute `sdd init --projet <nom>`
 **Alors** l'outil crée :
 - `docs/DOCTRINE.md` (version pin)
 - `docs/AGENT_STATE.md` (structure vide)
@@ -79,7 +79,7 @@ mal. SDD-Kit la cristallise.
 
 ### REQ-CLI02 : Adoption brownfield (adopt)
 **Étant donné** un projet existant sans SDD
-**Quand** l'owner exécute `sdd adopt --projet <nom>`
+**Quand** le responsable exécute `sdd adopt --projet <nom>`
 **Alors** l'outil lance un audit guidé :
 - Scan des routes orphelines (non exposées dans navigation)
 - Détection de mocks et placeholders
@@ -92,7 +92,7 @@ mal. SDD-Kit la cristallise.
 
 ### REQ-CLI03 : Création de nouvelle spec (new)
 **Étant donné** un projet SDD initialisé
-**Quand** l'owner exécute `sdd new <FAMILLE> --brouillon`
+**Quand** le responsable exécute `sdd new <FAMILLE> --brouillon`
 **Alors** l'outil génère `docs/specs/SPEC-<FAMILLE>.md` avec :
 - Toutes les sections canoniques (Propos, Portée, REQ GWT, Phases,
   Décisions ouvertes, Impacts, Notes croisées, Limitations)
@@ -102,7 +102,7 @@ mal. SDD-Kit la cristallise.
 
 ### REQ-CLI04 : Arbitre (lint)
 **Étant donné** un projet SDD
-**Quand** l'owner (ou CI) exécute `sdd lint`
+**Quand** le responsable (ou CI) exécute `sdd lint`
 **Alors** l'outil vérifie :
 - REQ sans Given/When/Then → erreur SDD-L001
 - Décision sans statut → erreur SDD-L002
@@ -117,7 +117,7 @@ mal. SDD-Kit la cristallise.
 
 ### REQ-CLI05 : Tableau de bord (status)
 **Étant donné** un projet SDD
-**Quand** l'owner exécute `sdd status`
+**Quand** le responsable exécute `sdd status`
 **Alors** l'outil affiche (ASCII) :
 - Compteurs par statut (specs, décisions, backlog, tâches)
 - Spécification en vol + phase courante + progression
@@ -126,7 +126,7 @@ mal. SDD-Kit la cristallise.
 
 ### REQ-CLI06 : Décisions et ratifications (decide)
 **Étant donné** une décision ouverte dans une spec
-**Quand** l'owner exécute `sdd decide <SPEC> <Dn> "<texte>" --ratifiee`
+**Quand** le responsable exécute `sdd decide <SPEC> <Dn> "<texte>" --ratifiee`
 **Alors** l'outil :
 - Met à jour la ligne de décision (statut → ratifiée + date)
 - Append au Historique de la spec (bump version mineure)
@@ -134,7 +134,7 @@ mal. SDD-Kit la cristallise.
 
 ### REQ-CLI07 : Traçabilité (trace)
 **Étant donné** une REQ (ex: REQ-VIZ01)
-**Quand** l'owner exécute `sdd trace REQ-VIZ01`
+**Quand** le responsable exécute `sdd trace REQ-VIZ01`
 **Alors** l'outil affiche :
 - Les commits qui mentionnent la REQ (convention commit-msg)
 - Les tâches bornées associées
@@ -143,10 +143,10 @@ mal. SDD-Kit la cristallise.
 
 ### REQ-CLI08 : Brief agent borné (agent-brief)
 **Étant donné** une spec et une phase
-**Quand** l'owner exécute `sdd agent-brief <SPEC> <Pn> --pour <agent>`
+**Quand** le responsable exécute `sdd agent-brief <SPEC> <Pn> --pour <agent>`
 **Alors** l'outil génère un prompt texte contenant :
 - Périmètre strict (inclus / exclus de la phase)
-- Décisions owner déjà ratifiées (incrustées)
+- Décisions du responsable déjà ratifiées (incrustées)
 - Règles dures applicables
 - Format de commit attendu
 - Format de report attendu
@@ -235,7 +235,7 @@ avant P4, et seulement si le dogfooding démontre l'utilité.
 ## Impacts
 
 - **Sur projet-source** : aucun — projet-source reste le cas d'étude, pas une
-  dépendance de la CLI. Migration optionnelle si l'owner le décide.
+  dépendance de la CLI. Migration optionnelle si le responsable le décide.
 - **Sur l'équipe** : onboarding d'un nouveau projet réduit de
   plusieurs semaines à une session SDD-Kit.
 - **Sur les agents** : tout agent sur projet SDD-Kit lit

@@ -13,8 +13,8 @@
    dans le commit qui la pose.
 7. **Mémoire du repo** : AGENT_STATE à chaque phase ou 3 commits ;
    nouveau chat = « Lee docs/AGENT_STATE.md y continúa ».
-8. **Validation owner** : aucune tâche visuelle close sans capture ou
-   vérification owner consignée.
+8. **Validation du responsable** : aucune tâche visuelle close sans capture ou
+   vérification du responsable consignée.
 9. **Couche d'honnêteté** : données → rendu réel ; absence → état
    vide avec action ; échec → alerte lisible ; succès → seulement si
    N > 0.
