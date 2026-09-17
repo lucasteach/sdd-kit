@@ -23,12 +23,16 @@ public static class Program
             return 1;
         }
 
+        string root = Directory.GetCurrentDirectory();
         return args[0] switch
         {
             "init" => Init(args[1..]),
             "new" => New(args[1..]),
-            "lint" => Lint.Run(Directory.GetCurrentDirectory()),
-            "status" => Status.Run(Directory.GetCurrentDirectory()),
+            "lint" => Lint.Run(root),
+            "status" => Status.Run(root),
+            "decide" => Decide.Run(root, args[1..]),
+            "trace" => Trace.Run(root, args[1..]),
+            "agent-brief" => Brief.Run(root, args[1..]),
             "help" or "--help" or "-h" => PrintUsage(),
             _ => UnknownCommand(args[0]),
         };
@@ -51,7 +55,8 @@ public static class Program
               sdd new <FAMILLE>           crée docs/specs/SPEC-<FAMILLE>.md (Brouillon,
                                           placeholders [À RATIFIER], zéro prose inventée)
 
-            Implémentées en P2/P3 : lint, status, decide, trace, agent-brief, adopt.
+            Implémentés : init, new, lint, status, decide, trace, agent-brief.
+            Reste à venir (P4) : adopt + CI gate réel.
             """);
         return 0;
     }

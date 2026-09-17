@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace Sdd.Tests;
 
@@ -36,6 +37,10 @@ public static class Tests
             Test_Lint_Propre_Exit0(sandbox);
             Test_Status_ByteIdentique_AnnexeA(sandbox);
             Test_Dogfood_SddKit(startup);
+            Test_Decide(sandbox);
+            Test_Trace(sandbox);
+            Test_AgentBrief(sandbox);
+            Test_AgentBrief_Dogfood_P3(startup);
         }
         finally
         {
@@ -429,6 +434,118 @@ public static class Tests
         Check(lines.All(l => l.Length == 64), "toutes les lignes du box à 64 caractères");
         Check(lines.Any(l => l.Contains("◐ 50 %", StringComparison.Ordinal)),
               "progression réelle : 2 phases approuvées / 4 → ◐ 50 % (« à approuver » ne compte pas)");
+    }
+
+    // ---------- P3 : decide / trace / agent-brief ----------
+
+    private static string InitGitProject(string sandbox, string label)
+    {
+        string dir = FreshProject(sandbox, label);
+        RunCli(dir, "init", "--projet", "portail-citoyen");
+        RunCli(dir, "new", "PORTAIL-CITOYEN");
+        Git.Run(dir, "init", "-b", "main");
+        Git.Run(dir, "config", "user.name", "sdd-tests");
+        Git.Run(dir, "config", "user.email", "tests@local");
+        Git.Run(dir, "add", "-A");
+        Git.Run(dir, "commit", "-m", "chore(sdd): init — artefacts doctrine v1.0");
+        return dir;
+    }
+
+    private static void Test_Decide(string sandbox)
+    {
+        Console.WriteLine("T17 — sdd decide : ligne + Historique + commit atomique");
+        string dir = InitGitProject(sandbox, "decide");
+        var (exit, _) = RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1",
+            "Distribution par dotnet tool interne.", "--ratifiee");
+        Check(exit == 0, "exit 0");
+
+        string spec = Read(Path.Combine(dir, "docs", "specs", "SPEC-PORTAIL-CITOYEN.md"));
+        Check(spec.Contains("- **D1** Distribution par dotnet tool interne. — **RATIFIÉE ", StringComparison.Ordinal),
+              "ligne D1 = texte owner + RATIFIÉE + date");
+        Check(spec.Contains("**Version** : 1.1", StringComparison.Ordinal), "bump version mineure 1.0 → 1.1");
+        Check(Regex.IsMatch(spec, @"- v1\.1 \(\d{2}/\d{2}/\d{4}\) : décision D1 ratifiée par l'owner"),
+              "Historique appendu (dd/MM/yyyy)");
+        Check(RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "x", "--ratifiee").exit == 0, "re-décide idempotent-ish (exit 0)");
+        string log = Git.Run(dir, "log", "--format=%s").stdout;
+        Check(log.Contains("docs(portail-citoyen): ratification D1 — v1.1", StringComparison.Ordinal),
+              "commit atomique généré");
+        Check(RunCli(dir, "decide", "SPEC-INEXISTANTE", "D1", "x", "--ratifiee").exit != 0, "spec inconnue → erreur");
+        Check(RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D9", "x", "--ratifiee").exit != 0, "D9 absent → erreur");
+    }
+
+    private static void Test_Trace(string sandbox)
+    {
+        Console.WriteLine("T18 — sdd trace : commits + statut global");
+        string dir = InitGitProject(sandbox, "trace");
+        var (exit0, out0) = (RunCli(dir, "trace", "REQ-PORTAIL-CITOYEN01").exit, Capture(dir, "trace", "REQ-PORTAIL-CITOYEN01"));
+        Check(exit0 == 0, "exit 0");
+        Check(out0.Contains("Commits mentionnant la REQ : 0", StringComparison.Ordinal)
+              && out0.Contains("non démarrée", StringComparison.Ordinal), "0 commit → non démarrée");
+
+        Git.Run(dir, "commit", "--allow-empty", "-m", "feat(cli): Implements REQ-PORTAIL-CITOYEN01");
+        string out1 = Capture(dir, "trace", "REQ-PORTAIL-CITOYEN01");
+        Check(out1.Contains("Commits mentionnant la REQ : 1", StringComparison.Ordinal), "1 commit trouvé");
+        Check(out1.Contains("Implements REQ-PORTAIL-CITOYEN01", StringComparison.Ordinal), "sujet du commit listé");
+        Check(out1.Contains("partielle", StringComparison.Ordinal), "phase non approuvée → partielle");
+        Check(RunCli(dir, "trace", "REQ-FANTAISIE99").exit != 0, "REQ hors spec → erreur");
+    }
+
+    private static string Capture(string dir, params string[] args)
+    {
+        string previous = Directory.GetCurrentDirectory();
+        var buf = new StringWriter();
+        TextWriter o = Console.Out, e = Console.Error;
+        Console.SetOut(buf);
+        Console.SetError(buf);
+        try
+        {
+            Directory.SetCurrentDirectory(dir);
+            Program.Main(args);
+        }
+        finally
+        {
+            Console.SetOut(o);
+            Console.SetError(e);
+            Directory.SetCurrentDirectory(previous);
+        }
+
+        return buf.ToString();
+    }
+
+    private static void Test_AgentBrief(string sandbox)
+    {
+        Console.WriteLine("T19 — sdd agent-brief : prompt auto-suffisant");
+        string dir = InitGitProject(sandbox, "brief");
+        RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "dotnet tool.", "--ratifiee");
+        string outp = Capture(dir, "agent-brief", "SPEC-PORTAIL-CITOYEN", "P1", "--pour", "qwenwork");
+        Check(outp.Contains("# Tâche bornée : SPEC-PORTAIL-CITOYEN — P1", StringComparison.Ordinal), "titre");
+        Check(outp.Contains("## Périmètre strict", StringComparison.Ordinal) && outp.Contains("Exclus (ne pas toucher", StringComparison.Ordinal),
+              "périmètre inclus/exclus");
+        Check(outp.Contains("— **RATIFIÉE", StringComparison.Ordinal), "décision ratifiée incrustée");
+        Check(outp.Contains("1. **Spec avant code**", StringComparison.Ordinal), "doctrine incrustée (verbatim docs/DOCTRINE.md)");
+        Check(outp.Contains("## Format de commit attendu", StringComparison.Ordinal)
+              && outp.Contains("## Format de report attendu", StringComparison.Ordinal), "formats commit+report");
+        Check(outp.Contains("destinataire : qwenwork", StringComparison.Ordinal), "destinataire");
+        Check(outp.Contains("Validation", StringComparison.Ordinal), "section validation");
+    }
+
+    private static void Test_AgentBrief_Dogfood_P3(string startup)
+    {
+        Console.WriteLine("T20 — agent-brief dogfooding sur SPEC-OUTIL-SDD P3");
+        if (!File.Exists(Path.Combine(startup, "docs", "specs", "SPEC-OUTIL-SDD.md")))
+        {
+            Console.WriteLine("  (ignoré hors racine du repo)");
+            return;
+        }
+
+        string outp = Capture(startup, "agent-brief", "SPEC-OUTIL-SDD", "P3", "--pour", "qwenwork");
+        Check(outp.Contains("### REQ-CLI06", StringComparison.Ordinal)
+              && outp.Contains("### REQ-CLI07", StringComparison.Ordinal)
+              && outp.Contains("### REQ-CLI08", StringComparison.Ordinal),
+              "les 3 REQ de P3 (decide/trace/agent-brief) sont incrustées");
+        Check(!outp.Contains("### REQ-CLI01", StringComparison.Ordinal), "REQ de P1 exclues du brief P3");
+        Check(outp.Split("- **D").Length - 1 >= 7, "les 7 décisions ratifiées sont incrustées");
+        Check(outp.Contains("contrat humain↔agent généré", StringComparison.Ordinal), "jalon P3 présent");
     }
 
     private static string[] Sample(string resource)

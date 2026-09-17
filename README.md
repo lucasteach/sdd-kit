@@ -1,6 +1,6 @@
 # sdd — SDD-Kit CLI
 
-Outil de la méthodologie **Spec-Driven Development** (spec `docs/specs/SPEC-OUTIL-SDD.md`, v1.1, P1 approuvée 16/09).
+Outil de la méthodologie **Spec-Driven Development** (spec `docs/specs/SPEC-OUTIL-SDD.md`, v1.1 ; P1 et P2 approuvées 16/09, P3 en attente d'approbation).
 
 Frontière dure : la CLI fournit **squelette, arbitre et trace** ; elle n'écrit
 **jamais** de prose de spec. Les décisions restent propriété de l'humain.
@@ -11,9 +11,11 @@ Frontière dure : la CLI fournit **squelette, arbitre et trace** ; elle n'écrit
 |---|---|---|
 | `sdd init` | P1 | implémenté |
 | `sdd new` | P1 | implémenté |
-| `sdd lint` | P2 | à venir (workflow placeholder bloquant « lint non implémenté — P2 ») |
-| `sdd status` | P2 | à venir |
-| `sdd decide` / `trace` / `agent-brief` | P3 | à venir |
+| `sdd lint` | P2 | implémenté (L001-L007 + waivers) |
+| `sdd status` | P2 | implémenté (format normatif Annexe A) |
+| `sdd decide` | P3 | implémenté (commit atomique via git) |
+| `sdd trace` | P3 | implémenté (convention commit-msg) |
+| `sdd agent-brief` | P3 | implémenté (prompt auto-suffisant) |
 | `sdd adopt` + CI gate réel | P4 | à venir |
 
 ## Installation
