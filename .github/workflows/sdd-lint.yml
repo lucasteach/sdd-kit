@@ -1,0 +1,21 @@
+# CI gate SDD (REQ-CLI09) — bloquant sur erreur, tolérant aux warnings.
+name: sdd-lint
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: sdd lint --ci
+        run: |
+          if [ -f src/Sdd.Cli/Sdd.Cli.csproj ]; then
+            dotnet run --project src/Sdd.Cli -- lint --ci
+          else
+            sdd lint --ci   # projet sans CLI vendue : `sdd` installé (dotnet tool)
+          fi

@@ -13,7 +13,6 @@ namespace Sdd;
 public static class Program
 {
     public const string DoctrineVersion = "1.0";
-    private const string EnVolMarker = "_(aucune — `sdd new` ajoute une entrée ici)_";
 
     public static int Main(string[] args)
     {
@@ -27,8 +26,9 @@ public static class Program
         return args[0] switch
         {
             "init" => Init(args[1..]),
+            "adopt" => Adopt.Run(root, args[1..]),
             "new" => New(args[1..]),
-            "lint" => Lint.Run(root),
+            "lint" => Lint.Run(root, ci: args[1..].Contains("--ci")),
             "status" => Status.Run(root),
             "decide" => Decide.Run(root, args[1..]),
             "trace" => Trace.Run(root, args[1..]),
@@ -79,14 +79,7 @@ public static class Program
         }
 
         string root = Directory.GetCurrentDirectory();
-        var files = new Dictionary<string, string>
-        {
-            [Path.Combine(root, "sdd.toml")] = BuildToml(nom),
-            [Path.Combine(root, "docs", "DOCTRINE.md")] = Resource("DOCTRINE.md"),
-            [Path.Combine(root, "docs", "AGENT_STATE.md")] = BuildAgentState(nom),
-            [Path.Combine(root, "docs", "BACKLOG.md")] = BuildBacklog(nom),
-            [Path.Combine(root, ".github", "workflows", "sdd-lint.yml")] = BuildWorkflowPlaceholder(),
-        };
+        var files = Scaffold.Build(root, nom);
 
         var conflicts = files.Keys.Where(File.Exists).ToList();
         if (conflicts.Count > 0)
@@ -115,92 +108,6 @@ public static class Program
         Console.WriteLine("Premier réflexe : commit initial contenant tous ces artefacts, puis `sdd new <FAMILLE>`.");
         return 0;
     }
-
-    private static string BuildToml(string nom) =>
-        $"""
-        # sdd.toml — métadonnées du projet (généré par `sdd init`)
-        [projet]
-        nom = "{nom}"
-
-        [doctrine]
-        version = "{DoctrineVersion}"  # pin : docs/DOCTRINE.md, embarqué verbatim par la CLI
-
-        """;
-
-    private static string BuildAgentState(string nom) =>
-        $"""
-        # AGENT_STATE — {nom}
-
-        <!-- Mémoire de continuité inter-sessions. Source de vérité du repo. -->
-
-        ## Convention de reprise
-
-        Le **premier message** d'un nouveau chat sur ce projet doit être :
-
-        > « Lee docs/AGENT_STATE.md y continúa »
-
-        ## État courant
-
-        | Champ | Valeur |
-        |---|---|
-        | Phase active | — |
-        | Spec de référence | — |
-        | Next action | — |
-
-        ## Spécifications en vol
-
-        {EnVolMarker}
-
-        ## Table des commits de session
-
-        <!-- Une ligne par session : hash, date, agent, résumé, prochaine action. -->
-
-        | Hash | Date | Agent | Résumé | Prochaine action |
-        |---|---|---|---|---|
-
-        """;
-
-    private static string BuildBacklog(string nom) =>
-        $"""
-        # BACKLOG — {nom}
-
-        Registre des idées, dettes et demandes reportées du projet.
-
-        ## Règle anti-oubli
-
-        > **Toute idée pospuesta s'enregistre ici dans le commit qui la pose.**
-
-        Quand une idée, amélioration ou correction est repoussée hors du périmètre
-        de la tâche en cours, elle est ajoutée à ce fichier **dans le même commit**
-        que celui qui la postpone. Aucune idée reportée ne vit uniquement dans une
-        conversation.
-
-        ## Entrées
-
-        <!-- Format : - [ ] (YYYY-MM-DD, origine) description → phase/version visée -->
-
-        _(vide)_
-
-        """;
-
-    private static string BuildWorkflowPlaceholder() =>
-        """
-        # CI gate SDD — placeholder P1, bloquant volontaire (REQ-CLI09, règles en P2)
-        name: sdd-lint
-        on:
-          push:
-          pull_request:
-        jobs:
-          lint:
-            runs-on: ubuntu-latest
-            steps:
-              - uses: actions/checkout@v4
-              - name: sdd lint
-                run: |
-                  echo "lint non implémenté — P2" >&2
-                  exit 1
-
-        """;
 
     // ---------- new ----------
 
@@ -275,10 +182,10 @@ public static class Program
             return true;
         }
 
-        int markerPos = text.IndexOf(EnVolMarker, StringComparison.Ordinal);
+        int markerPos = text.IndexOf(Scaffold.EnVolMarker, StringComparison.Ordinal);
         if (markerPos >= 0 && markerPos > idx)
         {
-            text = text.Replace(EnVolMarker, entry);
+            text = text.Replace(Scaffold.EnVolMarker, entry);
         }
         else
         {
@@ -296,13 +203,13 @@ public static class Program
 
     // ---------- communs ----------
 
-    private static void Write(string path, string content)
+    internal static void Write(string path, string content)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, content, new UTF8Encoding(false));
     }
 
-    private static string Resource(string suffix)
+    internal static string Resource(string suffix)
     {
         Assembly asm = typeof(Program).Assembly;
         string? name = asm.GetManifestResourceNames()
@@ -318,7 +225,7 @@ public static class Program
         return text.Replace("\r\n", "\n");
     }
 
-    private static string Relative(string root, string path) =>
+    internal static string Relative(string root, string path) =>
         Path.GetRelativePath(root, path).Replace('\\', '/');
 
     private static void Err(string msg) => Console.Error.WriteLine($"✖ {msg}");

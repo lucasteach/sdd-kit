@@ -41,6 +41,9 @@ public static class Tests
             Test_Trace(sandbox);
             Test_AgentBrief(sandbox);
             Test_AgentBrief_Dogfood_P3(startup);
+            Test_Adopt_Brownfield(sandbox);
+            Test_Adopt_DejaInitialise(sandbox);
+            Test_Lint_CI(sandbox);
         }
         finally
         {
@@ -133,8 +136,8 @@ public static class Tests
         Check(toml.Contains("version = \"1.0\"", StringComparison.Ordinal), "sdd.toml : doctrine pin v1.0");
 
         string wf = Read(Path.Combine(dir, ".github", "workflows", "sdd-lint.yml"));
-        Check(wf.Contains("lint non implémenté — P2", StringComparison.Ordinal) && wf.Contains("exit 1", StringComparison.Ordinal),
-              "workflow placeholder échouant « lint non implémenté — P2 »");
+        Check(wf.Contains("lint --ci", StringComparison.Ordinal) && wf.Contains("actions/setup-dotnet", StringComparison.Ordinal),
+              "workflow CI gate fonctionnel (REQ-CLI09)");
     }
 
     private static void Test_Init_Necrase_Pas(string sandbox)
@@ -546,6 +549,111 @@ public static class Tests
         Check(!outp.Contains("### REQ-CLI01", StringComparison.Ordinal), "REQ de P1 exclues du brief P3");
         Check(outp.Split("- **D").Length - 1 >= 7, "les 7 décisions ratifiées sont incrustées");
         Check(outp.Contains("contrat humain↔agent généré", StringComparison.Ordinal), "jalon P3 présent");
+    }
+
+    // ---------- P4 : adopt + CI ----------
+
+    private static void Test_Adopt_Brownfield(string sandbox)
+    {
+        Console.WriteLine("T21 — sdd adopt : détection des 5 patterns (hors-ligne pour les liens)");
+        string dir = FreshProject(sandbox, "adopt");
+        Directory.CreateDirectory(Path.Combine(dir, "Pages"));
+        Directory.CreateDirectory(Path.Combine(dir, "Components"));
+        Directory.CreateDirectory(Path.Combine(dir, "wwwroot"));
+        File.WriteAllText(Path.Combine(dir, "Pages", "Accueil.razor"),
+            "@page \"/accueil\"\n<h1>Accueil</h1>\n");
+        File.WriteAllText(Path.Combine(dir, "Pages", "Dashboard.razor"),
+            "@page \"/tableau-de-bord\"\n<h1>Dashboard</h1>\n");
+        File.WriteAllText(Path.Combine(dir, "Components", "NavMenu.razor"),
+            "<nav><NavLink href=\"/accueil\">Accueil</NavLink></nav>\n");
+        File.WriteAllText(Path.Combine(dir, "Pages", "Rapport.razor"),
+            "@page \"/rapport\"\n@* // composant de rapport *@\n"
+            + "// TODO: brancher l'API réelle\n"
+            + "var chart = new Chart(el, { data: { datasets: [] } });\n"
+            + "ShowToast(Success, \"✔ Export terminé (0 éléments)\");\n");
+        File.WriteAllText(Path.Combine(dir, "Pages", "Kpis.razor"),
+            "@page \"/kpis\"\n<p>100 % des dossiers numérisés</p>\n<p>0 items traités</p>\n");
+        File.WriteAllText(Path.Combine(dir, "wwwroot", "index.html"),
+            "<html><body><a href=\"https://exemple-introuvable-sdd.test/404\">lien</a></body></html>\n");
+
+        Environment.SetEnvironmentVariable("SDD_SKIP_NETWORK", "1");
+        (int exit, string output) run;
+        try
+        {
+            run = RunCli(dir, "adopt", "--projet", "portail-citoyen");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("SDD_SKIP_NETWORK", null);
+        }
+
+        int exit = run.exit;
+        string output = run.output;
+
+        Check(exit == 0, "adopt exit 0");
+        Check(output.Contains("route orpheline", StringComparison.Ordinal), "sortie : route orpheline")
+            ;
+        Check(output.Contains("hors-ligne", StringComparison.Ordinal), "liens non vérifiés déclarés hors-ligne (zéro faux positif)");
+
+        string backlog = Read(Path.Combine(dir, "docs", "BACKLOG.md"));
+        Check(backlog.Contains("route orpheline", StringComparison.Ordinal), "BUK route orpheline (/tableau-de-bord)");
+        Check(backlog.Contains("TODO/FIXME", StringComparison.Ordinal), "BUK mock TODO");
+        Check(backlog.Contains("sans données réelles", StringComparison.Ordinal), "BUK chart sans données");
+        Check(backlog.Contains("fausse confirmation", StringComparison.Ordinal), "BUK fausse confirmation (succès N=0)");
+        Check(backlog.Contains("métriques contradictoires", StringComparison.Ordinal), "BUK métriques 100 % vs 0");
+        Check(backlog.Contains("- [ ] BUK-001", StringComparison.Ordinal) && backlog.Contains("2026-", StringComparison.Ordinal)
+              && backlog.Contains("sdd adopt", StringComparison.Ordinal), "entrées BUK avec date + origine + statut ouvert");
+        Check(File.Exists(Path.Combine(dir, "sdd.toml")) && File.Exists(Path.Combine(dir, "docs", "DOCTRINE.md")),
+              "infrastructures SDD créées (DOCTRINE, BACKLOG, AGENT_STATE, sdd.toml, workflow)");
+        Check(File.ReadAllText(Path.Combine(dir, "Pages", "Dashboard.razor")).Contains("@page", StringComparison.Ordinal),
+              "code existant intact (aucune modification du projet)");
+    }
+
+    private static void Test_Adopt_DejaInitialise(string sandbox)
+    {
+        Console.WriteLine("T22 — sdd adopt refuse un projet déjà initialisé");
+        string dir = FreshProject(sandbox, "adopt-twice");
+        Directory.CreateDirectory(Path.Combine(dir, "Pages"));
+        File.WriteAllText(Path.Combine(dir, "Pages", "A.razor"), "@page \"/a\"\n");
+        Check(RunCli(dir, "adopt", "--projet", "p").exit == 0, "premier adopt OK");
+        var (exit, output) = RunCli(dir, "adopt", "--projet", "p");
+        Check(exit != 0, "second adopt refusé");
+    }
+
+    private static void Test_Lint_CI(string sandbox)
+    {
+        Console.WriteLine("T23 — sdd lint --ci : format condensé + exit codes");
+        string dir = FreshProject(sandbox, "ci");
+        RunCli(dir, "init", "--projet", "t");
+        RunCli(dir, "new", "EXEMPLE");
+        string outp = Capture(dir, "lint", "--ci");
+        Check(outp.Contains("RESUME regles_ok=", StringComparison.Ordinal) && outp.Contains("erreurs=0", StringComparison.Ordinal),
+              "propre : RESUME erreurs=0");
+        Check(!outp.Contains("·", StringComparison.Ordinal), "pas de format normatif humain en mode --ci");
+        Check(outp.TrimEnd().Length > 0 && outp.Split('\n').All(l => !l.StartsWith('✔')), "aucune sortie box/humaine");
+
+        string specPath = Path.Combine(dir, "docs", "specs", "SPEC-EXEMPLE.md");
+        string spec = Read(specPath).Replace("**Alors** [À RATIFIER]", "// Alors retiré");
+        File.WriteAllText(specPath, spec);
+        string outp2 = Capture(dir, "lint", "--ci");
+        Check(outp2.Contains("SDD-L001 ERREUR", StringComparison.Ordinal) && outp2.Contains("erreurs=1", StringComparison.Ordinal),
+              "erreur cassante : ligne condensée SDD-L001 ERREUR + erreurs=1");
+        Check(CaptureExit(dir) == 1, "exit code 1 quand ≥1 erreur");
+        Check(!outp2.Contains("::error", StringComparison.Ordinal), "pas d'annotations GHA hors CI (GITHUB_ACTIONS non défini)");
+    }
+
+    private static int CaptureExit(string dir)
+    {
+        string previous = Directory.GetCurrentDirectory();
+        try
+        {
+            Directory.SetCurrentDirectory(dir);
+            return Program.Main(new[] { "lint", "--ci" });
+        }
+        finally
+        {
+            Directory.SetCurrentDirectory(previous);
+        }
     }
 
     private static string[] Sample(string resource)

@@ -21,7 +21,7 @@ public static class Lint
         "py", "java", "go", "rust", "html", "css", "dockerfile", "makefile",
     };
 
-    public static int Run(string root, TextWriter? writer = null)
+    public static int Run(string root, TextWriter? writer = null, bool ci = false)
     {
         writer ??= Console.Out;
         TomlLite.ProjectMeta meta = TomlLite.Load(root);
@@ -75,6 +75,28 @@ public static class Lint
         int errors = kept.Count(f => f.Severity == Sev.Error);
         int warnings = kept.Count(f => f.Severity == Sev.Warning);
         int ok = Math.Max(checks - kept.Count, 0);
+
+        if (ci)
+        {
+            bool gha = Environment.GetEnvironmentVariable("GITHUB_ACTIONS") == "true";
+            foreach (Finding f in kept.Where(f => f.Severity == Sev.Error)
+                         .Concat(kept.Where(f => f.Severity == Sev.Warning)))
+            {
+                string sev = f.Severity == Sev.Error ? "ERREUR" : "AVERTISSEMENT";
+                string joined = string.Join(" ", f.Details);
+                writer.WriteLine($"{f.Rule} {sev} {joined}");
+                if (gha)
+                {
+                    Match loc = Regex.Match(f.Details.Count > 0 ? f.Details[0] : "", @"^(\S+?):(\d+)");
+                    string file = loc.Success ? "docs/" + loc.Groups[1].Value : "docs";
+                    string ln = loc.Success ? loc.Groups[2].Value : "1";
+                    writer.WriteLine($"::{(f.Severity == Sev.Error ? "error" : "warning")} file={file},line={ln},title={f.Rule}::{f.Title} — {joined}");
+                }
+            }
+
+            writer.WriteLine($"RESUME regles_ok={ok} erreurs={errors} warnings={warnings} waivers={waived.Count}");
+            return errors > 0 ? 1 : 0;
+        }
 
         foreach (Finding f in kept.Where(f => f.Severity == Sev.Error))
         {

@@ -1,6 +1,6 @@
 # sdd — SDD-Kit CLI
 
-Outil de la méthodologie **Spec-Driven Development** (spec `docs/specs/SPEC-OUTIL-SDD.md`, v1.1 ; P1 et P2 approuvées 16/09, P3 en attente d'approbation).
+Outil de la méthodologie **Spec-Driven Development** (spec `docs/specs/SPEC-OUTIL-SDD.md`, v1.1 ; P1–P4 approuvées 16/09).
 
 Frontière dure : la CLI fournit **squelette, arbitre et trace** ; elle n'écrit
 **jamais** de prose de spec. Les décisions restent propriété de l'humain.
@@ -16,7 +16,8 @@ Frontière dure : la CLI fournit **squelette, arbitre et trace** ; elle n'écrit
 | `sdd decide` | P3 | implémenté (commit atomique via git) |
 | `sdd trace` | P3 | implémenté (convention commit-msg) |
 | `sdd agent-brief` | P3 | implémenté (prompt auto-suffisant) |
-| `sdd adopt` + CI gate réel | P4 | à venir |
+| `sdd adopt` | P4 | implémenté (audit brownfield → BUK-* au BACKLOG) |
+| CI gate | P4 | workflow `sdd-lint.yml` fonctionnel (`lint --ci`, bloquant sur erreur) |
 
 ## Installation
 
