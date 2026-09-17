@@ -16,11 +16,16 @@ public static class Decide
         writer ??= Console.Out;
         var positional = new List<string>();
         bool ratifiee = false;
+        bool force = false;
         foreach (string a in args)
         {
             if (a == "--ratifiee")
             {
                 ratifiee = true;
+            }
+            else if (a == "--force")
+            {
+                force = true;
             }
             else
             {
@@ -30,7 +35,7 @@ public static class Decide
 
         if (positional.Count != 3 || !ratifiee)
         {
-            writer.WriteLine("usage : sdd decide <SPEC> <Dn> \"<texte>\" --ratifiee");
+            writer.WriteLine("usage : sdd decide <SPEC> <Dn> \"<texte>\" --ratifiee [--force]");
             return 1;
         }
 
@@ -76,10 +81,22 @@ public static class Decide
             return 1;
         }
 
+        // 0) idempotence (micro-fix 1.0.2) : decision deja ratifiee avec le MEME texte
+        //    -> no-op sans bump, sans entree Historique, sans commit (--force re-edite).
+        string body = texte.Trim();
+        Match cur = Regex.Match(decision.Value.Text, @"^- \*\*" + dId + @"\*\*\s*(.*?)\s+—\s*(.*)$");
+        bool alreadyRatified = cur.Success
+            && cur.Groups[2].Value.Contains("RATIFIÉE", StringComparison.OrdinalIgnoreCase);
+        if (alreadyRatified && cur.Groups[1].Value == body && !force)
+        {
+            writer.WriteLine($"  no-op : {spec.Name} {dId} déjà ratifiée avec ce texte — aucune entrée Historique, aucun commit.");
+            writer.WriteLine("  (utiliser --force pour rééditer, ou changer le texte pour un nouveau bump)");
+            return 0;
+        }
+
         // 1) mise a jour de la ligne de decision (corps = texte owner, statut = ratifiee + date)
         string now = DateTime.Now.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
         string shortDate = DateTime.Now.ToString("dd/MM", CultureInfo.InvariantCulture);
-        string body = texte.Trim();
         string newLine = $"- **{dId}** {body} — **RATIFIÉE {shortDate}**";
         spec.Lines[decision.Value.Index] = newLine;
 

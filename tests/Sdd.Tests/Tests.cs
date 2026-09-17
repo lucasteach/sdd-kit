@@ -48,6 +48,7 @@ public static class Tests
             Test_Version();
             Test_Adopt_Vide(sandbox);
             Test_I18n_Garde(sandbox);
+            Test_Decide_Idempotence(sandbox);
         }
         finally
         {
@@ -680,8 +681,8 @@ public static class Tests
         Console.WriteLine("T25 — sdd --version / -v");
         string v1 = Capture(Directory.GetCurrentDirectory(), "--version");
         string v2 = Capture(Directory.GetCurrentDirectory(), "-v");
-        Check(v1.Contains("sdd 1.0.1", StringComparison.Ordinal), "--version → sdd 1.0.1");
-        Check(v2.Contains("sdd 1.0.1", StringComparison.Ordinal), "-v → sdd 1.0.1");
+        Check(v1.Contains("sdd 1.0.2", StringComparison.Ordinal), "--version → sdd 1.0.2");
+        Check(v2.Contains("sdd 1.0.2", StringComparison.Ordinal), "-v → sdd 1.0.2");
         Check(v1.Contains("doctrine v1.0", StringComparison.Ordinal), "pin doctrine affiché");
     }
 
@@ -731,6 +732,34 @@ public static class Tests
               "SDD-L008 signalé (un warning par terme présent)");
         Check(output.Contains("3 warnings", StringComparison.Ordinal), "3 warnings (pospuesta, hallazgo, hallazgos — par terme, pas par occurrence)")
             ;
+    }
+
+    private static void Test_Decide_Idempotence(string sandbox)
+    {
+        Console.WriteLine("T28 — sdd decide idempotent (micro-fix 1.0.2)");
+        string dir = InitGitProject(sandbox, "idem");
+        string specPath = Path.Combine(dir, "docs", "specs", "SPEC-PORTAIL-CITOYEN.md");
+        int RatifEntries() => Read(specPath).Split('\n').Count(l => l.Contains(": décision D1 ratifiée", StringComparison.Ordinal));
+
+        var (e1, _) = RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "Même texte.", "--ratifiee");
+        Check(e1 == 0, "decide #1 appliqué");
+        Check(RatifEntries() == 1, "1 entrée Historique après #1");
+
+        var (e2, out2) = RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "Même texte.", "--ratifiee");
+        Check(e2 == 0, "decide #2 (texte identique) → exit 0");
+        Check(out2.Contains("no-op", StringComparison.Ordinal), "decide #2 déclaré no-op");
+        Check(RatifEntries() == 1, "toujours 1 seule entrée Historique (zéro duplicat)");
+        Check(Read(specPath).Contains("**Version** : 1.1", StringComparison.Ordinal), "un seul bump (v1.1)")
+            ;
+        int commits = Git.Run(dir, "rev-list", "--count", "HEAD").stdout.Trim() is var n && int.TryParse(n, out int c) ? c : 0;
+        RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "Même texte.", "--ratifiee");
+        int commitsAfterNoop = Git.Run(dir, "rev-list", "--count", "HEAD").stdout.Trim() is var n2 && int.TryParse(n2, out int c2) ? c2 : 0;
+        Check(commitsAfterNoop == commits, "no-op ne crée aucun commit");
+
+        var (e3, _) = RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "Même texte.", "--ratifiee", "--force");
+        Check(e3 == 0 && RatifEntries() == 2, "--force réédite (2e entrée)");
+        var (e4, _) = RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "Texte différent.", "--ratifiee");
+        Check(e4 == 0 && RatifEntries() == 3, "texte différent → update + 3e entrée normalement");
     }
 
     private static string[] Sample(string resource)
