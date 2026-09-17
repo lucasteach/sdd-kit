@@ -6,7 +6,8 @@ using System.Text.RegularExpressions;
 namespace Sdd;
 
 /// <summary>
-/// SDD-Kit CLI — P1 : scaffold (`init`, `new`).
+/// SDD-Kit CLI v1 — doctrine + arbitre + trace (init, new, lint, status,
+/// decide, trace, agent-brief, adopt).
 /// Frontière dure : la CLI fournit squelette, arbitre et trace ;
 /// elle n'écrit jamais de prose de spec. Zéro dépendance NuGet (BCL seul).
 /// </summary>
@@ -33,6 +34,7 @@ public static class Program
             "decide" => Decide.Run(root, args[1..]),
             "trace" => Trace.Run(root, args[1..]),
             "agent-brief" => Brief.Run(root, args[1..]),
+            "--version" or "-v" => PrintVersion(),
             "help" or "--help" or "-h" => PrintUsage(),
             _ => UnknownCommand(args[0]),
         };
@@ -45,18 +47,34 @@ public static class Program
         return 1;
     }
 
+    private static int PrintVersion()
+    {
+        string v = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "inconnue";
+        Console.WriteLine($"sdd {v} — doctrine v{DoctrineVersion} embarquée");
+        return 0;
+    }
+
     private static int PrintUsage()
     {
         Console.WriteLine("""
-            sdd — SDD-Kit CLI (P1 : scaffold)
+            sdd — SDD-Kit CLI (v1 complète : P1–P4)
 
             Usage :
-              sdd init --projet <nom>     initialise un projet SDD dans le cwd
-              sdd new <FAMILLE>           crée docs/specs/SPEC-<FAMILLE>.md (Brouillon,
-                                          placeholders [À RATIFIER], zéro prose inventée)
+              sdd init --projet <nom>    initialise un projet SDD greenfield dans le cwd
+              sdd adopt --projet <nom>   onramp brownfield : audit → BACKLOG, puis infrastructures SDD
+              sdd new <FAMILLE>          crée docs/specs/SPEC-<FAMILLE>.md (Brouillon,
+                                         placeholders [À RATIFIER], zéro prose inventée)
+              sdd lint [--ci]            arbitre SDD-L001..L007 (--ci : sortie condensée + exit code CI)
+              sdd status                 tableau ASCII normatif (Annexe A)
+              sdd decide <SPEC> <Dn> "<texte>" --ratifiee
+                                         ratifie une décision + Historique + commit atomique
+              sdd trace <REQ>            commits, phases, tâches et statut global d'une REQ
+              sdd agent-brief <SPEC> <Pn> --pour <agent>
+                                         prompt auto-suffisant pour agent borné
+              sdd --version              version installée
+              sdd help                   ce texte
 
-            Implémentés : init, new, lint, status, decide, trace, agent-brief.
-            Reste à venir (P4) : adopt + CI gate réel.
+            Zéro dépendance NuGet ; la CLI n'écrit jamais de prose de spec.
             """);
         return 0;
     }

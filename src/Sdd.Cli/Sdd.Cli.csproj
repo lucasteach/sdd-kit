@@ -7,9 +7,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>sdd</AssemblyName>
     <RootNamespace>Sdd</RootNamespace>
-    <Version>0.1.0</Version>
+    <Version>1.0.0</Version>
     <PackageId>sdd</PackageId>
-    <Description>SDD-Kit CLI — scaffold doctrine + specs (P1 : init, new)</Description>
+    <Description>SDD-Kit CLI v1 — doctrine, scaffold, arbitre, trace et contrat agent (init/new/lint/status/decide/trace/agent-brief/adopt)</Description>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sdd</ToolCommandName>
     <InvariantGlobalization>true</InvariantGlobalization>

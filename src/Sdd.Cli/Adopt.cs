@@ -100,7 +100,15 @@ public static class Adopt
         Directory.CreateDirectory(Path.Combine(root, "docs", "specs"));
 
         writer.WriteLine();
-        writer.WriteLine($"→ {hallazgos.Count} hallazgos enregistrés dans docs/BACKLOG.md (BUK-001…BUK-{hallazgos.Count:D3}), statut ouvert.");
+        if (hallazgos.Count > 0)
+        {
+            writer.WriteLine($"→ {hallazgos.Count} hallazgos enregistrés dans docs/BACKLOG.md (BUK-001…BUK-{hallazgos.Count:D3}), statut ouvert.");
+        }
+        else
+        {
+            writer.WriteLine("→ aucune entrée BACKLOG créée (audit sans hallazgo sur les patterns connus).");
+        }
+
         writer.WriteLine("  L'historique et le code du projet sont intacts ; la CLI ne committe pas (contrat humain).");
         writer.WriteLine("  Prochaine étape : commiter l'infrastructure, puis `sdd new <FAMILLE>` pour spec-couvrir les BUK prioritaires.");
         return 0;

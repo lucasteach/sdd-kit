@@ -44,6 +44,9 @@ public static class Tests
             Test_Adopt_Brownfield(sandbox);
             Test_Adopt_DejaInitialise(sandbox);
             Test_Lint_CI(sandbox);
+            Test_Usage_Honnete();
+            Test_Version();
+            Test_Adopt_Vide(sandbox);
         }
         finally
         {
@@ -435,8 +438,8 @@ public static class Tests
         string[] lines = buf.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
         Check(lines[0].StartsWith('┌') && lines[^1].StartsWith('└'), "status repo : box complet");
         Check(lines.All(l => l.Length == 64), "toutes les lignes du box à 64 caractères");
-        Check(lines.Any(l => l.Contains("◐ 50 %", StringComparison.Ordinal)),
-              "progression réelle : 2 phases approuvées / 4 → ◐ 50 % (« à approuver » ne compte pas)");
+        Check(lines.Any(l => l.Contains("◐ 75 %", StringComparison.Ordinal)),
+              "progression réelle : 3 phases approuvées (P1, P2, P4) / 4 → ◐ 75 % (« à approuver » ne compte pas)");
     }
 
     // ---------- P3 : decide / trace / agent-brief ----------
@@ -654,6 +657,42 @@ public static class Tests
         {
             Directory.SetCurrentDirectory(previous);
         }
+    }
+
+    // ---------- micro-fix : usage / --version / adopt vide ----------
+
+    private static void Test_Usage_Honnete()
+    {
+        Console.WriteLine("T24 — help honnête : 8 commandes, aucune promesse future");
+        string help = Capture(Directory.GetCurrentDirectory(), "help");
+        foreach (string cmd in new[] { "sdd init", "sdd adopt", "sdd new", "sdd lint", "sdd status", "sdd decide", "sdd trace", "sdd agent-brief" })
+        {
+            Check(help.Contains(cmd, StringComparison.Ordinal), $"help liste {cmd}");
+        }
+
+        Check(!help.Contains("Reste à venir", StringComparison.Ordinal), "aucune annonce de phase future");
+        Check(help.Contains("--version", StringComparison.Ordinal), "help mentionne --version");
+    }
+
+    private static void Test_Version()
+    {
+        Console.WriteLine("T25 — sdd --version / -v");
+        string v1 = Capture(Directory.GetCurrentDirectory(), "--version");
+        string v2 = Capture(Directory.GetCurrentDirectory(), "-v");
+        Check(v1.Contains("sdd 1.0.0", StringComparison.Ordinal), "--version → sdd 1.0.0");
+        Check(v2.Contains("sdd 1.0.0", StringComparison.Ordinal), "-v → sdd 1.0.0");
+        Check(v1.Contains("doctrine v1.0", StringComparison.Ordinal), "pin doctrine affiché");
+    }
+
+    private static void Test_Adopt_Vide(string sandbox)
+    {
+        Console.WriteLine("T26 — sdd adopt sans hallazgo : pas de rang vide");
+        string dir = FreshProject(sandbox, "adopt-vide");
+        var (exit, output) = RunCli(dir, "adopt", "--projet", "propre");
+        Check(exit == 0, "exit 0");
+        Check(output.Contains("aucune entrée BACKLOG créée", StringComparison.Ordinal), "message explicite");
+        Check(!output.Contains("BUK-001…BUK-000", StringComparison.Ordinal), "rang vide supprimé");
+        Check(Read(Path.Combine(dir, "docs", "BACKLOG.md")).Contains("_(vide)_", StringComparison.Ordinal), "BACKLOG reste vide");
     }
 
     private static string[] Sample(string resource)
