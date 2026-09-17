@@ -7,7 +7,7 @@ namespace Sdd;
 
 /// <summary>
 /// sdd adopt — REQ-CLI02, onramp brownfield : audit guide du projet existant,
-/// chaque hallazgo devient une entree BACKLOG (origine fichier:ligne, statut
+/// chaque constat devient une entree BACKLOG (origine fichier:ligne, statut
 /// ouvert), puis creation des infrastructures SDD sans toucher au code ni a
 /// l'historique git du projet (aucun commit).
 /// Faux negatifs assumés (documentes) : patterns limites aux formats connus ;
@@ -23,7 +23,7 @@ public static class Adopt
         ".razor", ".cshtml", ".html", ".js", ".ts", ".cs", ".json", ".md", ".yml", ".yaml",
     };
 
-    private sealed record Hallazgo(string Kind, string File, int Line, string Description, string Priority);
+    private sealed record Constat(string Kind, string File, int Line, string Description, string Priority);
 
     public static int Run(string root, string[] args, TextWriter? writer = null)
     {
@@ -48,34 +48,34 @@ public static class Adopt
         }
 
         var files = ScanFiles(root);
-        var hallazgos = new List<Hallazgo>();
+        var constats = new List<Constat>();
         int linksChecked = 0, linksOffline = 0;
 
-        DetectOrphanRoutes(files, hallazgos);
-        DetectMocks(files, hallazgos);
-        (int checkedN, int offlineN) = DetectDeadLinks(files, hallazgos);
+        DetectOrphanRoutes(files, constats);
+        DetectMocks(files, constats);
+        (int checkedN, int offlineN) = DetectDeadLinks(files, constats);
         linksChecked = checkedN;
         linksOffline = offlineN;
-        DetectFalseConfirmations(files, hallazgos);
-        DetectContradictoryMetrics(files, hallazgos);
+        DetectFalseConfirmations(files, constats);
+        DetectContradictoryMetrics(files, constats);
 
         string date = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var backlogEntries = new StringBuilder();
-        for (int i = 0; i < hallazgos.Count; i++)
+        for (int i = 0; i < constats.Count; i++)
         {
-            Hallazgo h = hallazgos[i];
+            Constat h = constats[i];
             backlogEntries.AppendLine(
                 $"- [ ] BUK-{i + 1:D3} ({date}, origine : {h.File}:{h.Line} — sdd adopt) {h.Kind} — {h.Description} (priorité {h.Priority}) → à trier en spec");
         }
 
         writer.WriteLine($"Audit brownfield « {nom} » — {files.Count} fichiers scannés.");
-        if (hallazgos.Count == 0)
+        if (constats.Count == 0)
         {
-            writer.WriteLine("  aucun hallazgo détecté (patterns connus ; faux négatifs possibles sur code exotique).");
+            writer.WriteLine("  aucun constat détecté (patterns connus ; faux négatifs possibles sur code exotique).");
         }
         else
         {
-            foreach (Hallazgo h in hallazgos)
+            foreach (Constat h in constats)
             {
                 writer.WriteLine($"  ✖ {h.File}:{h.Line} — {h.Kind} : {h.Description} [{h.Priority}]");
             }
@@ -84,7 +84,7 @@ public static class Adopt
         writer.WriteLine($"  liens HTTP vérifiés : {linksChecked}" + (linksOffline > 0 ? $" — non vérifiés (hors-ligne/DNS) : {linksOffline}" : ""));
 
         var artifacts = Scaffold.Build(root, nom,
-            hallazgos.Count > 0 ? backlogEntries.ToString() : null, originNote: "sdd adopt");
+            constats.Count > 0 ? backlogEntries.ToString() : null, originNote: "sdd adopt");
         foreach ((string path, string content) in artifacts)
         {
             if (File.Exists(path))
@@ -100,13 +100,13 @@ public static class Adopt
         Directory.CreateDirectory(Path.Combine(root, "docs", "specs"));
 
         writer.WriteLine();
-        if (hallazgos.Count > 0)
+        if (constats.Count > 0)
         {
-            writer.WriteLine($"→ {hallazgos.Count} hallazgos enregistrés dans docs/BACKLOG.md (BUK-001…BUK-{hallazgos.Count:D3}), statut ouvert.");
+            writer.WriteLine($"→ {constats.Count} constats enregistrés dans docs/BACKLOG.md (BUK-001…BUK-{constats.Count:D3}), statut ouvert.");
         }
         else
         {
-            writer.WriteLine("→ aucune entrée BACKLOG créée (audit sans hallazgo sur les patterns connus).");
+            writer.WriteLine("→ aucune entrée BACKLOG créée (audit sans constat sur les patterns connus).");
         }
 
         writer.WriteLine("  L'historique et le code du projet sont intacts ; la CLI ne committe pas (contrat humain).");
@@ -153,7 +153,7 @@ public static class Adopt
                 string rel = Path.GetRelativePath(root, file).Replace('\\', '/');
                 if (rel.StartsWith("docs/", StringComparison.Ordinal) || rel == "sdd.toml" || rel.StartsWith(".github/", StringComparison.Ordinal))
                 {
-                    continue; // l'infrastructure SDD elle-même n'est pas un hallazgo brownfield
+                    continue; // l'infrastructure SDD elle-même n'est pas un constat brownfield
                 }
 
                 result.Add(new SrcFile(rel, File.ReadAllLines(file)));
@@ -165,7 +165,7 @@ public static class Adopt
 
     // ---------- patterns (Annexe P4) ----------
 
-    private static void DetectOrphanRoutes(List<SrcFile> files, List<Hallazgo> found)
+    private static void DetectOrphanRoutes(List<SrcFile> files, List<Constat> found)
     {
         var pageRoutes = new List<(SrcFile File, int Line, string Route)>();
         foreach (SrcFile f in files)
@@ -196,7 +196,7 @@ public static class Adopt
                               || f.Rel.Contains("pages/", StringComparison.OrdinalIgnoreCase);
             if (!hasPage && underPages)
             {
-                found.Add(new Hallazgo("page sans @page", f.Rel, 1,
+                found.Add(new Constat("page sans @page", f.Rel, 1,
                     "fichier sous Pages/ sans directive @page (route inatteignable ou composant mal placé)", "P3"));
             }
         }
@@ -208,13 +208,13 @@ public static class Adopt
                                      || l.Contains(route, StringComparison.Ordinal)));
             if (!referenced)
             {
-                found.Add(new Hallazgo("route orpheline", f.Rel, line,
+                found.Add(new Constat("route orpheline", f.Rel, line,
                     $"« {route} » n'est référencée dans aucune navigation ni lien", "P2"));
             }
         }
     }
 
-    private static void DetectMocks(List<SrcFile> files, List<Hallazgo> found)
+    private static void DetectMocks(List<SrcFile> files, List<Constat> found)
     {
         var rules = new (Regex Rx, string Kind, string Desc, string Prio)[]
         {
@@ -231,7 +231,7 @@ public static class Adopt
                 {
                     if (rx.IsMatch(f.Lines[i]))
                     {
-                        found.Add(new Hallazgo(kind, f.Rel, i + 1, desc, prio));
+                        found.Add(new Constat(kind, f.Rel, i + 1, desc, prio));
                         break; // une occurrence par fichier et par pattern
                     }
                 }
@@ -239,7 +239,7 @@ public static class Adopt
         }
     }
 
-    private static (int Checked, int Offline) DetectDeadLinks(List<SrcFile> files, List<Hallazgo> found)
+    private static (int Checked, int Offline) DetectDeadLinks(List<SrcFile> files, List<Constat> found)
     {
         var urls = new List<(SrcFile F, int Line, string Url)>();
         var rx = new Regex("(?:href|src)=\"(https?://[^\"]+)\"");
@@ -287,7 +287,7 @@ public static class Adopt
                 using HttpResponseMessage resp = http.Send(req, HttpCompletionOption.ResponseHeadersRead);
                 if ((int)resp.StatusCode >= 400)
                 {
-                    found.Add(new Hallazgo("lien mort", f.Rel, line, $"{url} répond HTTP {(int)resp.StatusCode}", "P1"));
+                    found.Add(new Constat("lien mort", f.Rel, line, $"{url} répond HTTP {(int)resp.StatusCode}", "P1"));
                 }
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
@@ -299,7 +299,7 @@ public static class Adopt
         return (checkedN, offline);
     }
 
-    private static void DetectFalseConfirmations(List<SrcFile> files, List<Hallazgo> found)
+    private static void DetectFalseConfirmations(List<SrcFile> files, List<Constat> found)
     {
         var success = new Regex("succès|succes|success|terminé|termine|complété|completee|complète", RegexOptions.IgnoreCase);
         var zero = new Regex(@"Count\s*==\s*0|Length\s*==\s*0|\bN\s*=\s*0|\(\s*0\s*\)|:\s*0\b|—\s*0\b|\b0\s+(éléments|items|enregistrements|résultats|results|records|tâches)",
@@ -319,7 +319,7 @@ public static class Adopt
                 {
                     if (zero.IsMatch(f.Lines[j]))
                     {
-                        found.Add(new Hallazgo("fausse confirmation", f.Rel, i + 1,
+                        found.Add(new Constat("fausse confirmation", f.Rel, i + 1,
                             "message de succès affiché alors que le compteur est à 0 (règle 9 : succès seulement si N > 0)", "P1"));
                         break;
                     }
@@ -330,7 +330,7 @@ public static class Adopt
         }
     }
 
-    private static void DetectContradictoryMetrics(List<SrcFile> files, List<Hallazgo> found)
+    private static void DetectContradictoryMetrics(List<SrcFile> files, List<Constat> found)
     {
         var hundred = new Regex(@"100\s*%");
         var nothing = new Regex(@"\b0\s+(items|éléments|tâches|dossiers|traités|résultats|results|records|réalisés|done)", RegexOptions.IgnoreCase);
@@ -345,7 +345,7 @@ public static class Adopt
 
             if (hLine > 0 && zLine > 0)
             {
-                found.Add(new Hallazgo("métriques contradictoires", f.Rel, Math.Min(hLine, zLine),
+                found.Add(new Constat("métriques contradictoires", f.Rel, Math.Min(hLine, zLine),
                     $"« 100 % » (ligne {hLine}) cohabite avec un compteur à 0 (ligne {zLine}) sur le même écran", "P1"));
             }
         }

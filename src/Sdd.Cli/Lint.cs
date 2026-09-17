@@ -8,11 +8,19 @@ public enum Sev { Error, Warning }
 public sealed record Finding(Sev Severity, string Rule, string Title, List<string> Details);
 
 /// <summary>
-/// sdd lint — arbitre SDD-L001..L007 (REQ-CLI04). Sortie au format normatif
-/// Annexe A. Erreur → exit 1 (bloque CI) sauf waiver justifie dans sdd.toml.
+/// sdd lint — arbitre SDD-L001..L008 (REQ-CLI04 + langue D3). Sortie au format
+/// normatif Annexe A. Erreur → exit 1 (bloque CI) sauf waiver justifie dans sdd.toml.
 /// </summary>
 public static class Lint
 {
+    /// <summary>
+    /// Liste noire unique (micro-fix i18n 1.0.1) : termes non-FR herites des
+    /// textes fondateurs spanglish. SDD-L008 les signale en warning dans les
+    /// docs du projet audite ; le test de garde T27 l'utilise aussi.
+    /// Pour etendre : ajouter le terme ici, un seul endroit.
+    /// </summary>
+    public static readonly string[] LangBlacklist = { "pospuesta", "hallazgo", "hallazgos" };
+
     private static readonly Regex SpecToken = new(@"SPEC-[A-Z][A-Z0-9-]*", RegexOptions.Compiled);
     private static readonly string[] CodeFences =
     {
@@ -55,6 +63,7 @@ public static class Lint
 
             CheckSpecRefs(relPath, lines, fences, existingSpecs, findings, ref checks);
             CheckMagicNumbers(relPath, lines, fences, findings, ref checks);
+            CheckLanguage(relPath, lines, fences, findings, ref checks);
         }
 
         // waivers
@@ -407,6 +416,24 @@ public static class Lint
             {
                 findings.Add(new Finding(Sev.Warning, "SDD-L006", "magic numbers dans snippets code",
                     [$"{rel} [{lang}] : {string.Join(", ", magic.Distinct().Take(6))}"]));
+            }
+        }
+    }
+
+    private static void CheckLanguage(string rel, string[] lines, bool[] fences, List<Finding> findings, ref int checks)
+    {
+        checks++;
+        foreach (string term in LangBlacklist)
+        {
+            Regex rx = new($@"\b{Regex.Escape(term)}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                if (!fences[i] && rx.IsMatch(lines[i]))
+                {
+                    findings.Add(new Finding(Sev.Warning, "SDD-L008", "langue non conforme au pin D3",
+                        [$"{rel}:{i + 1} terme « {term} » — FR par défaut (D3) : remplacer par l'équivalent français"]));
+                    break; // une occurrence par fichier et par terme
+                }
             }
         }
     }

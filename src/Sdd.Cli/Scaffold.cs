@@ -72,7 +72,7 @@ public static class Scaffold
 
             ## Règle anti-oubli
 
-            > **Toute idée pospuesta s'enregistre ici dans le commit qui la pose.**
+            > **Toute idée reportée s'enregistre ici dans le commit qui la pose.**
 
             Quand une idée, amélioration ou correction est repoussée hors du périmètre
             de la tâche en cours, elle est ajoutée à ce fichier **dans le même commit**

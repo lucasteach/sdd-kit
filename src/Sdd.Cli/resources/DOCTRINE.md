@@ -9,7 +9,7 @@
    hash cité dans les reports.
 5. **Une tâche bornée à la fois** par agent ; jamais deux agents sur
    le même working tree.
-6. **Anti-oubli** : toute idée pospuesta s'enregistre au backlog
+6. **Anti-oubli** : toute idée reportée s'enregistre au backlog
    dans le commit qui la pose.
 7. **Mémoire du repo** : AGENT_STATE à chaque phase ou 3 commits ;
    nouveau chat = « Lee docs/AGENT_STATE.md y continúa ».

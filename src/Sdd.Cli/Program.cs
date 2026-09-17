@@ -64,7 +64,7 @@ public static class Program
               sdd adopt --projet <nom>   onramp brownfield : audit → BACKLOG, puis infrastructures SDD
               sdd new <FAMILLE>          crée docs/specs/SPEC-<FAMILLE>.md (Brouillon,
                                          placeholders [À RATIFIER], zéro prose inventée)
-              sdd lint [--ci]            arbitre SDD-L001..L007 (--ci : sortie condensée + exit code CI)
+              sdd lint [--ci]            arbitre SDD-L001..L008 (--ci : sortie condensée + exit code CI)
               sdd status                 tableau ASCII normatif (Annexe A)
               sdd decide <SPEC> <Dn> "<texte>" --ratifiee
                                          ratifie une décision + Historique + commit atomique
@@ -227,7 +227,7 @@ public static class Program
         File.WriteAllText(path, content, new UTF8Encoding(false));
     }
 
-    internal static string Resource(string suffix)
+    public static string Resource(string suffix)
     {
         Assembly asm = typeof(Program).Assembly;
         string? name = asm.GetManifestResourceNames()

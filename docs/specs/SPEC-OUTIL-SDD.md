@@ -28,7 +28,7 @@ Deux publics :
   humain↔agent dès le commit zéro.
 - **Brownfield** (améliorations à projets existants) : onramp guidé
   qui audite le projet, sème le backlog de ses invisibles, et
-  produit les premiers Brouillons à partir des hallazgos.
+  produit les premiers Brouillons à partir des constats.
 
 Spécification **docs-only** : aucun code avant approbation owner.
 
@@ -86,7 +86,7 @@ mal. SDD-Kit la cristallise.
 - Détection de liens morts (404, 500)
 - Détection de fausses confirmations (succès vert avec N=0)
 - Détection de métriques contradictoires (même écran)
-**Et** chaque hallazgo devient une entrée BACKLOG avec origine
+**Et** chaque constat devient une entrée BACKLOG avec origine
 (commit/fichier/ligne) et statut ouvert
 **Et** les infrastructures SDD (REQ-CLI01) sont créées autour
 

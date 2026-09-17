@@ -47,6 +47,7 @@ public static class Tests
             Test_Usage_Honnete();
             Test_Version();
             Test_Adopt_Vide(sandbox);
+            Test_I18n_Garde(sandbox);
         }
         finally
         {
@@ -127,7 +128,7 @@ public static class Tests
               && doctrine.Contains("10. **Frontière outillage**", StringComparison.Ordinal), "DOCTRINE verbatim : règles 9 et 10 présentes");
 
         string backlog = Read(Path.Combine(dir, "docs", "BACKLOG.md"));
-        Check(backlog.Contains("Toute idée pospuesta s'enregistre ici dans le commit qui la pose.", StringComparison.Ordinal),
+        Check(backlog.Contains("Toute idée reportée s'enregistre ici dans le commit qui la pose.", StringComparison.Ordinal),
               "BACKLOG : règle anti-oubli littérale");
 
         string state = Read(Path.Combine(dir, "docs", "AGENT_STATE.md"));
@@ -679,8 +680,8 @@ public static class Tests
         Console.WriteLine("T25 — sdd --version / -v");
         string v1 = Capture(Directory.GetCurrentDirectory(), "--version");
         string v2 = Capture(Directory.GetCurrentDirectory(), "-v");
-        Check(v1.Contains("sdd 1.0.0", StringComparison.Ordinal), "--version → sdd 1.0.0");
-        Check(v2.Contains("sdd 1.0.0", StringComparison.Ordinal), "-v → sdd 1.0.0");
+        Check(v1.Contains("sdd 1.0.1", StringComparison.Ordinal), "--version → sdd 1.0.1");
+        Check(v2.Contains("sdd 1.0.1", StringComparison.Ordinal), "-v → sdd 1.0.1");
         Check(v1.Contains("doctrine v1.0", StringComparison.Ordinal), "pin doctrine affiché");
     }
 
@@ -693,6 +694,43 @@ public static class Tests
         Check(output.Contains("aucune entrée BACKLOG créée", StringComparison.Ordinal), "message explicite");
         Check(!output.Contains("BUK-001…BUK-000", StringComparison.Ordinal), "rang vide supprimé");
         Check(Read(Path.Combine(dir, "docs", "BACKLOG.md")).Contains("_(vide)_", StringComparison.Ordinal), "BACKLOG reste vide");
+    }
+
+    private static void Test_I18n_Garde(string sandbox)
+    {
+        Console.WriteLine("T27 — garde i18n (liste noire unique, extensible dans Lint.LangBlacklist)");
+        string[] texts =
+        {
+            Program.Resource("DOCTRINE.md"),
+            Program.Resource("SPEC-template.md"),
+            Scaffold.Backlog("t", null),
+            Scaffold.AgentState("t"),
+            Scaffold.Toml("t", null),
+        };
+        foreach (string t in Lint.LangBlacklist)
+        {
+            foreach (string text in texts)
+            {
+                Check(!text.Contains(t, StringComparison.OrdinalIgnoreCase), $"resource sans « {t} »");
+            }
+        }
+
+        string dirVide = FreshProject(sandbox, "i18n-adopt");
+        var (_, adoptOut) = RunCli(dirVide, "adopt", "--projet", "propre");
+        foreach (string t in Lint.LangBlacklist)
+        {
+            Check(!adoptOut.Contains(t, StringComparison.OrdinalIgnoreCase), $"sortie adopt sans « {t} »");
+        }
+
+        string dirDet = MakeFixture(sandbox, "l008",
+            "# Spec\n## Historique\n- v1.0 : x\n\n## Notes\n\nIdée pospuesta et un hallazgo isolé, plus des hallazgos divers.\n");
+        var (exit, output) = RunLint(dirDet);
+        Check(exit == 0, "L008 est un warning : ne bloque pas");
+        Check(output.Contains("SDD-L008", StringComparison.Ordinal)
+              && output.Contains("langue non conforme au pin D3", StringComparison.Ordinal),
+              "SDD-L008 signalé (un warning par terme présent)");
+        Check(output.Contains("3 warnings", StringComparison.Ordinal), "3 warnings (pospuesta, hallazgo, hallazgos — par terme, pas par occurrence)")
+            ;
     }
 
     private static string[] Sample(string resource)
