@@ -11,17 +11,17 @@ Frontière dure : la CLI fournit **squelette, arbitre et trace** ; elle n'écrit
 |---|---|---|
 | `sdd init` | P1 | implémenté |
 | `sdd new` | P1 | implémenté |
-| `sdd lint` | P2 | implémenté (L001-L007 + waivers) |
+| `sdd lint` | P2 | implémenté (SDD-L001-L008 + waivers + SDD-WVR) |
 | `sdd status` | P2 | implémenté (format normatif Annexe A) |
 | `sdd decide` | P3 | implémenté (commit atomique via git) |
 | `sdd trace` | P3 | implémenté (convention commit-msg) |
 | `sdd agent-brief` | P3 | implémenté (prompt auto-suffisant) |
 | `sdd adopt` | P4 | implémenté (audit brownfield → BUK-* au BACKLOG) |
-| CI gate | P4 | workflow `sdd-lint.yml` fonctionnel (`lint --ci`, bloquant sur erreur) |
+| CI gate | P4 | workflow `sdd-lint.yml` fonctionnel (tests + `lint --ci`, bloquant sur erreur) |
 
 ## Installation
 
-Prérequis : .NET SDK (net10.0 ; `net8.0+` accepté).
+Prérequis : .NET SDK 10 (TFM `net10.0`).
 
 ```bash
 # depuis la racine du repo
@@ -39,10 +39,10 @@ sdd --help
 Dans le répertoire courant, crée :
 
 - `docs/DOCTRINE.md` — doctrine v1.0 embarquée **verbatim** par la CLI (pin)
-- `docs/AGENT_STATE.md` — structure vide + règle de reprise (« Lee docs/AGENT_STATE.md y continúa »)
+- `docs/AGENT_STATE.md` — structure vide + règle de reprise (« Lis docs/AGENT_STATE.md et continue »)
 - `docs/BACKLOG.md` — en-tête + règle anti-oubli littérale
 - `docs/specs/` — répertoire vide
-- `.github/workflows/sdd-lint.yml` — placeholder volontairement bloquant (P2)
+- `.github/workflows/sdd-lint.yml` — CI gate : tests + `sdd lint --ci`
 - `sdd.toml` — nom du projet + pin doctrine v1.0
 
 `init` **n'écrase jamais** des fichiers existants et ne fait aucun commit :
@@ -69,7 +69,7 @@ sdd new PORTAIL-CITOYEN
 
 ```bash
 dotnet build tests/Sdd.Tests
-dotnet run --project tests/Sdd.Tests   # 49 assertions, exit ≠ 0 si échec
+dotnet run --project tests/Sdd.Tests   # 229 assertions, exit ≠ 0 si échec
 ```
 
 Zéro dépendance NuGet : BCL seul + runner d'assertions intégré (voir report P1

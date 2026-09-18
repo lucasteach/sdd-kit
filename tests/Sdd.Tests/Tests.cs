@@ -56,6 +56,9 @@ public static class Tests
             Test_L003_DocsAnidados(sandbox);
             Test_WaiverInutilise(sandbox);
             Test_Workflow_AvecTests();
+            Test_Args_Validees(sandbox);
+            Test_TomlMultiLigne(sandbox);
+            Test_PhaseMentions_Partage(sandbox);
         }
         finally
         {
@@ -140,7 +143,7 @@ public static class Tests
               "BACKLOG : règle anti-oubli littérale");
 
         string state = Read(Path.Combine(dir, "docs", "AGENT_STATE.md"));
-        Check(state.Contains("Lee docs/AGENT_STATE.md y continúa", StringComparison.Ordinal), "AGENT_STATE : règle de reprise");
+        Check(state.Contains("Lis docs/AGENT_STATE.md et continue", StringComparison.Ordinal), "AGENT_STATE : règle de reprise (FR, D3)");
         Check(state.Contains("## Spécifications en vol", StringComparison.Ordinal), "AGENT_STATE : section en vol");
 
         string toml = Read(Path.Combine(dir, "sdd.toml"));
@@ -651,7 +654,7 @@ public static class Tests
         Check(outp2.Contains("SDD-L001 ERREUR", StringComparison.Ordinal) && outp2.Contains("erreurs=1", StringComparison.Ordinal),
               "erreur cassante : ligne condensée SDD-L001 ERREUR + erreurs=1");
         Check(CaptureExit(dir) == 1, "exit code 1 quand ≥1 erreur");
-        string gha = Environment.GetEnvironmentVariable("GITHUB_ACTIONS");
+        string? gha = Environment.GetEnvironmentVariable("GITHUB_ACTIONS");
         try
         {
             Environment.SetEnvironmentVariable("GITHUB_ACTIONS", null);
@@ -698,11 +701,13 @@ public static class Tests
 
     private static void Test_Version()
     {
-        Console.WriteLine("T25 — sdd --version / -v");
+        Console.WriteLine("T25 — sdd --version / -v (source unique : version de l'assembly)");
+        string attendue = typeof(Program).Assembly.GetName().Version?.ToString(3) ?? "";
         string v1 = Capture(Directory.GetCurrentDirectory(), "--version");
         string v2 = Capture(Directory.GetCurrentDirectory(), "-v");
-        Check(v1.Contains("sdd 1.0.3", StringComparison.Ordinal), "--version → sdd 1.0.3");
-        Check(v2.Contains("sdd 1.0.3", StringComparison.Ordinal), "-v → sdd 1.0.3");
+        Check(v1.Contains($"sdd {attendue}", StringComparison.Ordinal), $"--version → sdd {attendue}");
+        Check(v2.Contains($"sdd {attendue}", StringComparison.Ordinal), "-v idem (aucune littérale dupliquée)");
+        Check(attendue == "1.0.4", "l'assembly est bien 1.0.4 (garde anti-dérive du csproj)");
         Check(v1.Contains("doctrine v1.0", StringComparison.Ordinal), "pin doctrine affiché");
     }
 
@@ -744,14 +749,13 @@ public static class Tests
         }
 
         string dirDet = MakeFixture(sandbox, "l008",
-            "# Spec\n## Historique\n- v1.0 : x\n\n## Notes\n\nIdée pospuesta et un hallazgo isolé, plus des hallazgos divers, ratifié par l'owner.\n");
+            "# Spec\n## Historique\n- v1.0 : x\n\n## Notes\n\nIdée pospuesta et un hallazgo isolé, plus des hallazgos divers, ratifié par l'owner ; « Lee … y continúa » et sa cabecera aussi.\n");
         var (exit, output) = RunLint(dirDet);
         Check(exit == 0, "L008 est un warning : ne bloque pas");
         Check(output.Contains("SDD-L008", StringComparison.Ordinal)
               && output.Contains("langue non conforme au pin D3", StringComparison.Ordinal),
               "SDD-L008 signalé (un warning par terme présent)");
-        Check(output.Contains("4 warnings", StringComparison.Ordinal), "4 warnings (les quatre termes de la liste noire, par terme présent)")
-            ;
+        Check(output.Contains("6 warnings", StringComparison.Ordinal), "6 warnings — tous les termes de la liste noire détectés (BUK-017)");
     }
 
     private static void Test_Decide_Idempotence(string sandbox)
@@ -900,6 +904,71 @@ public static class Tests
               "étape de tests présente dans la template");
         Check(wf.IndexOf("tests SDD", StringComparison.Ordinal) < wf.IndexOf("sdd lint --ci", StringComparison.Ordinal),
               "les tests tournent avant le lint");
+    }
+
+    // ---------- cosmétique finale (BUK-016…022) ----------
+
+    private static void Test_Args_Validees(string sandbox)
+    {
+        Console.WriteLine("T36 — arguments validés (jamais ignorés en silence) (BUK-020)");
+        string dir = FreshProject(sandbox, "args");
+        var (s1, so1) = RunCli(dir, "status", "foo");
+        Check(s1 != 0 && so1.Contains("argument inconnu", StringComparison.Ordinal), "sdd status foo → erreur explicite");
+        var (s2, so2) = RunCli(dir, "lint", "--xyz");
+        Check(s2 != 0 && so2.Contains("arguments inconnus", StringComparison.Ordinal), "sdd lint --xyz → erreur explicite");
+        var (s3, so3) = RunCli(dir, "lint", "--help");
+        Check(s3 == 0 && so3.Contains("Usage :", StringComparison.Ordinal), "sdd lint --help → usage, exit 0");
+        var (s4, _) = RunCli(dir, "lint", "--ci", "--xyz");
+        Check(s4 != 0, "mélange --ci + flag inconnu refusé");
+        var (s5, _) = RunCli(dir, "lint", "--ci");
+        Check(s5 == 0 || s5 == 1, "sdd lint --ci toujours accepté (5/6 exit selon projet)");
+    }
+
+    private static void Test_TomlMultiLigne(string sandbox)
+    {
+        Console.WriteLine("T37 — sdd.toml : chaines multilignes (BUK-022)");
+        string dir = FreshProject(sandbox, "toml-ml");
+        string[] tomlLines =
+        {
+            "[projet]",
+            "nom = \"\"\"",
+            "portail-citoyen",
+            "(ligne ajoutée)",
+            "\"\"\"",
+            "",
+            "[doctrine]",
+            "version = '''1.0'''",
+            "",
+            "[[waiver]]",
+            "regle = \"SDD-L999\"",
+            "portee = ''''''",
+            "justification = '''",
+            "justification",
+            "sur deux lignes",
+            "'''",
+        };
+        File.WriteAllText(Path.Combine(dir, "sdd.toml"), string.Join("\n", tomlLines) + "\n");
+        var meta = TomlLite.Load(dir);
+        Check(meta.Nom == "portail-citoyen\n(ligne ajoutée)", "nom multiligne basique assemblé");
+        Check(meta.Doctrine == "1.0", "simple quotes literals supportées");
+        Check(meta.Waivers.Count == 1 && meta.Waivers[0].Justification == "justification\nsur deux lignes",
+              "justification multiligne littérale assemblée");
+    }
+
+    private static void Test_PhaseMentions_Partage(string sandbox)
+    {
+        Console.WriteLine("T38 — PhaseMentions : une seule implémentation, comportement d'origine (BUK-021)");
+        string dir = MakeFixture(sandbox, "pm",
+            "# Spec\n**Version** : 1.0\n## Historique\n- v1.0 : x\n\n## Exigences\n\n"
+            + "### REQ-PM01 : Initialisation de projet (init)\n**Étant donné** a\n**Quand** b\n**Alors** c\n\n"
+            + "### REQ-PM02 : Arbitre (lint)\n**Étant donné** a\n**Quand** b\n**Alors** c\n\n"
+            + "## Phases\n\n| Phase | Contenu | Jalon | Statut |\n|---|---|---|---|\n"
+            + "| P1 | `sdd init` du projet | j1 | approuvée |\n| P2 | arbitre lint | j2 | à approuver |\n");
+        var spec = SpecModel.Load(Path.Combine(dir, "docs", "specs", "SPEC-T.md"));
+        Check(spec.PhaseMentions("`sdd init` du projet", "REQ-PM01"), "parenthèse du titre → matching");
+        Check(!spec.PhaseMentions("`sdd init` du projet", "REQ-PM02"), "pas de fuite entre phases");
+        Check(spec.PhaseMentions("arbitre SDD-L001..L008", "REQ-PM02"), "id ou mot-signature → matching");
+        Check(!spec.PhaseMentions("phase sans rapport", "REQ-INCONNUE99"), "REQ absente → false, sans exception");
     }
 
     private static string[] Sample(string resource)

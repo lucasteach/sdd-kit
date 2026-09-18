@@ -24,13 +24,19 @@ public static class Program
         }
 
         string root = Directory.GetCurrentDirectory();
+        // `sdd <cmd> --help` : usage globale, exit 0 (jamais exécuter l'action)
+        if (args.Length > 1 && (args[1] == "--help" || args[1] == "-h"))
+        {
+            return PrintUsage();
+        }
+
         return args[0] switch
         {
             "init" => Init(args[1..]),
             "adopt" => Adopt.Run(root, args[1..]),
             "new" => New(args[1..]),
-            "lint" => Lint.Run(root, ci: args[1..].Contains("--ci")),
-            "status" => Status.Run(root),
+            "lint" => LintCmd(root, args[1..]),
+            "status" => StatusCmd(root, args[1..]),
             "decide" => Decide.Run(root, args[1..]),
             "trace" => Trace.Run(root, args[1..]),
             "agent-brief" => Brief.Run(root, args[1..]),
@@ -38,6 +44,29 @@ public static class Program
             "help" or "--help" or "-h" => PrintUsage(),
             _ => UnknownCommand(args[0]),
         };
+    }
+
+    private static int LintCmd(string root, string[] args)
+    {
+        var inconnus = args.Where(a => a != "--ci").ToList();
+        if (inconnus.Count > 0)
+        {
+            Err($"arguments inconnus : {string.Join(' ', inconnus)} — usage : sdd lint [--ci]");
+            return 1;
+        }
+
+        return Lint.Run(root, ci: args.Contains("--ci"));
+    }
+
+    private static int StatusCmd(string root, string[] args)
+    {
+        if (args.Length > 0)
+        {
+            Err($"argument inconnu : « {args[0]} » — usage : sdd status");
+            return 1;
+        }
+
+        return Status.Run(root);
     }
 
     private static int UnknownCommand(string cmd)

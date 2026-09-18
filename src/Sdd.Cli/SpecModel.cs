@@ -1,3 +1,4 @@
+using System.Text.RegularExpressions;
 using System.Diagnostics;
 using System.Text;
 
@@ -180,4 +181,44 @@ public sealed class SpecModel
     }
 
     public void Save() => File.WriteAllText(Path, string.Join('\n', Lines) + "\n", new UTF8Encoding(false));
+
+    /// <summary>
+    /// Heuristique REQ→phase partagée (ex-Trace.cs/116 + Brief.cs/159, DRY) :
+    /// la REQ est liée à une phase si le Contenu cite l'id littérale, le mot
+    /// entre parenthèses du titre, ou un mot-signature (≥ 5 lettres, hors
+    /// stopwords) du titre. Non normative : `sdd trace`/`agent-brief` l'assument
+    /// comme approximation documentee.
+    /// </summary>
+    public bool PhaseMentions(string contenu, string req)
+    {
+        string c = contenu.ToLowerInvariant().Replace("`", "");
+        if (c.Contains(req.ToLowerInvariant(), StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        var range = ReqBlocks().FirstOrDefault(b => b.Id == req);
+        if (range.Start == 0 && range.Id is null)
+        {
+            return false;
+        }
+
+        string title = Lines[range.Start];
+        int colon = title.IndexOf(':');
+        if (colon < 0)
+        {
+            return false;
+        }
+
+        string tail = title[(colon + 1)..];
+        Match paren = Regex.Match(tail, @"\(([^)]+)\)");
+        if (paren.Success && c.Contains(paren.Groups[1].Value.ToLowerInvariant(), StringComparison.Ordinal))
+        {
+            return true;
+        }
+
+        return Regex.Matches(tail.ToLowerInvariant(), @"[a-zà-ÿ]{5,}")
+            .Where(w => w.Value is not ("règles" or "spec" or "projet"))
+            .Any(w => c.Contains(w.Value, StringComparison.Ordinal));
+    }
 }

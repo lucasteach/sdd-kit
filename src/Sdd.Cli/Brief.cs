@@ -60,7 +60,7 @@ public static class Brief
         var meta = TomlLite.Load(root);
 
         var reqs = spec.ReqBlocks()
-            .Where(b => PhaseMentions(current.Contenu, b.Id, spec))
+            .Where(b => spec.PhaseMentions(current.Contenu, b.Id))
             .ToList();
 
         var o = new StringBuilder();
@@ -154,35 +154,6 @@ public static class Brief
     }
 
     private static string Strip(string s) => s.Replace("`", "");
-
-    /// <summary>Même heuristique de mapping REQ→phase que `sdd trace`.</summary>
-    private static bool PhaseMentions(string contenu, string req, SpecModel spec)
-    {
-        string c = contenu.ToLowerInvariant().Replace("`", "");
-        if (c.Contains(req.ToLowerInvariant(), StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        var range = spec.ReqBlocks().First(b => b.Id == req);
-        string title = spec.Lines[range.Start];
-        int colon = title.IndexOf(':');
-        if (colon < 0)
-        {
-            return false;
-        }
-
-        string tail = title[(colon + 1)..];
-        Match paren = Regex.Match(tail, @"\(([^)]+)\)");
-        if (paren.Success && c.Contains(paren.Groups[1].Value.ToLowerInvariant(), StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        return Regex.Matches(tail.ToLowerInvariant(), @"[a-zèéûîôàû]{5,}")
-            .Where(w => w.Value is not ("règles" or "spec" or "projet"))
-            .Any(w => c.Contains(w.Value, StringComparison.Ordinal));
-    }
 
     private static string Resource(string suffix)
     {

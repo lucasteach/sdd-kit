@@ -39,7 +39,7 @@ public static class Scaffold
 
         Le **premier message** d'un nouveau chat sur ce projet doit être :
 
-        > « Lee docs/AGENT_STATE.md y continúa »
+        > « Lis docs/AGENT_STATE.md et continue »
 
         ## État courant
 

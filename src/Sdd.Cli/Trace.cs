@@ -39,8 +39,8 @@ public static class Trace
 
         if (spec is null)
         {
-            writer.WriteLine($"✖ {req} n'apparaît comme cabecera « ### {req} » dans aucune spec de docs/specs/.");
-            writer.WriteLine("  (sdd trace suit les REQ ratifiees ; une REQ sans spec reste invisible, par design)");
+            writer.WriteLine($"✖ {req} n'apparaît comme en-tête « ### {req} » dans aucune spec de docs/specs/.");
+            writer.WriteLine("  (sdd trace suit les REQ ratifiées ; une REQ sans spec reste invisible, par design)");
             return 1;
         }
 
@@ -52,7 +52,7 @@ public static class Trace
             commits = log.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         }
 
-        var phases = spec.PhaseRows().Where(r => PhaseMentions(r.Contenu, req, spec, r.Phase)).ToList();
+        var phases = spec.PhaseRows().Where(r => spec.PhaseMentions(r.Contenu, req)).ToList();
         var reqRange = spec.ReqBlocks().First(b => b.Id == req);
         string reqBody = string.Join('\n', spec.Lines[reqRange.Start..reqRange.End]);
         bool aRatifier = reqBody.Contains("[À RATIFIER]", StringComparison.Ordinal);
@@ -112,26 +112,4 @@ public static class Trace
         return 0;
     }
 
-    /// <summary>Lie une REQ a sa phase : id litteral, ou mot-cle du titre (parenthese ou mots > 4 lettres) present dans le Contenu.</summary>
-    private static bool PhaseMentions(string contenu, string req, SpecModel spec, string phase)
-    {
-        string c = contenu.ToLowerInvariant().Replace("`", "");
-        if (c.Contains(req.ToLowerInvariant(), StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        var range = spec.ReqBlocks().First(b => b.Id == req);
-        string title = spec.Lines[range.Start];
-        string tail = title[(title.IndexOf(':') + 1)..];
-        var paren = Regex.Match(tail, @"\(([^)]+)\)");
-        if (paren.Success && c.Contains(paren.Groups[1].Value.ToLowerInvariant(), StringComparison.Ordinal))
-        {
-            return true;
-        }
-
-        var words = Regex.Matches(tail.ToLowerInvariant(), @"[a-zéûîôàûè]{5,}");
-        return words.Where(w => w.Value is not ("règles" or "spec" or "projet"))
-            .Any(w => c.Contains(w.Value, StringComparison.Ordinal));
-    }
 }
