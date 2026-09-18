@@ -10,10 +10,18 @@
     <Version>1.0.4</Version>
     <PackageId>sdd</PackageId>
     <Description>SDD-Kit CLI v1 — doctrine, scaffold, arbitre, trace et contrat agent (init/new/lint/status/decide/trace/agent-brief/adopt)</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Authors>lucasteach</Authors>
+    <PackageProjectUrl>https://github.com/lucasteach/sdd-kit</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sdd</ToolCommandName>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="resources/DOCTRINE.md" />
