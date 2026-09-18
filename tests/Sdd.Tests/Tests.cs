@@ -49,6 +49,9 @@ public static class Tests
             Test_Adopt_Vide(sandbox);
             Test_I18n_Garde(sandbox);
             Test_Decide_Idempotence(sandbox);
+            Test_Adopt_BacklogPreexistant(sandbox);
+            Test_Workflow_Installable(startup);
+            Test_Decide_SpecIncomplete(sandbox);
         }
         finally
         {
@@ -760,6 +763,65 @@ public static class Tests
         Check(e3 == 0 && RatifEntries() == 2, "--force réédite (2e entrée)");
         var (e4, _) = RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "Texte différent.", "--ratifiee");
         Check(e4 == 0 && RatifEntries() == 3, "texte différent → update + 3e entrée normalement");
+    }
+
+    // ---------- micro-fix audit externe DeepSeek (BUK-009/010/011) ----------
+
+    private static void Test_Adopt_BacklogPreexistant(string sandbox)
+    {
+        Console.WriteLine("T29 — adopt sur BACKLOG préexistant : append honnête (BUK-009)");
+        string dir = FreshProject(sandbox, "adopt-append");
+        Directory.CreateDirectory(Path.Combine(dir, "docs"));
+        Directory.CreateDirectory(Path.Combine(dir, "Pages"));
+        string original =
+            "# BACKLOG — legacy\n\n## Entrées\n\n- [ ] BUK-777 (2026-09-01, origine : audit manuel) dette existante → P1\n";
+        File.WriteAllText(Path.Combine(dir, "docs", "BACKLOG.md"), original);
+        File.WriteAllText(Path.Combine(dir, "Pages", "Rapport.razor"),
+            "@page \"/rapport\"\n// TODO: brancher l'API\n");
+        Environment.SetEnvironmentVariable("SDD_SKIP_NETWORK", "1");
+        var (exit, output) = RunCli(dir, "adopt", "--projet", "legacy");
+        Environment.SetEnvironmentVariable("SDD_SKIP_NETWORK", null);
+
+        Check(exit == 0, "adopt exit 0");
+        string after = Read(Path.Combine(dir, "docs", "BACKLOG.md"));
+        Check(after.Contains("BUK-777", StringComparison.Ordinal) && after.Contains("dette existante", StringComparison.Ordinal),
+              "contenu préexistant INTACT (pas d'écrasement)");
+        Check(after.Contains("<!-- sdd-adopt legacy", StringComparison.Ordinal), "marqueur d'append présent");
+        Check(after.Contains("- [ ] BUK-001", StringComparison.Ordinal), "BUK de l'audit APPENDU (pas jeté)");
+        Check(output.Contains("enregistrés", StringComparison.Ordinal) && after.Contains("BUK-001", StringComparison.Ordinal),
+              "le résumé « enregistrés » est vrai : les entrées sont sur disque");
+        Check(output.Contains("mis à jour (append sous marqueur)", StringComparison.Ordinal), "log honnête pour le fichier préexistant");
+    }
+
+    private static void Test_Workflow_Installable(string startup)
+    {
+        Console.WriteLine("T30 — workflow généré : guard d'installation, jamais de « command not found » nu (BUK-010)");
+        string wf = Scaffold.Workflow();
+        Check(wf.Contains("command -v sdd", StringComparison.Ordinal), "garde command -v sdd présente");
+        Check(wf.Contains("exit 2", StringComparison.Ordinal) && wf.Contains("introuvable", StringComparison.Ordinal),
+              "sinon message lisible + exit ≠ 0");
+        Check(!Regex.IsMatch(wf, @"else\s*\n\s*sdd lint --ci"), "aucun appel brut `sdd` non gardé");
+        string repoWf = Path.Combine(startup, ".github", "workflows", "sdd-lint.yml");
+        if (File.Exists(repoWf))
+        {
+            Check(Read(repoWf).TrimEnd() == wf.TrimEnd(), "le workflow du propre repo sdd-kit est à jour de la template");
+        }
+    }
+
+    private static void Test_Decide_SpecIncomplete(string sandbox)
+    {
+        Console.WriteLine("T31 — decide sur spec sans Version/Historique : refus net, document intact (BUK-011)");
+        string dir = FreshProject(sandbox, "decide-incomplete");
+        Directory.CreateDirectory(Path.Combine(dir, "docs", "specs"));
+        string content = "# Spec LEGACY\n\n## Décisions\n\n- **D1** choix hérité — à ratifier\n";
+        string specPath = Path.Combine(dir, "docs", "specs", "SPEC-LEGACY.md");
+        File.WriteAllText(specPath, content);
+        byte[] before = File.ReadAllBytes(specPath);
+        var (exit, output) = RunCli(dir, "decide", "SPEC-LEGACY", "D1", "choix hérité", "--ratifiee");
+        Check(exit != 0, "exit ≠ 0");
+        Check(output.Contains("**Version**", StringComparison.Ordinal) && output.Contains("## Historique", StringComparison.Ordinal),
+              "l'erreur nomme les DEUX sections manquantes");
+        Check(File.ReadAllBytes(specPath).SequenceEqual(before), "document byte-idéntique (aucune corruption)");
     }
 
     private static string[] Sample(string resource)

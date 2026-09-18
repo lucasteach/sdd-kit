@@ -85,26 +85,63 @@ public static class Adopt
 
         var artifacts = Scaffold.Build(root, nom,
             constats.Count > 0 ? backlogEntries.ToString() : null, originNote: "sdd adopt");
+        string backlogPath = Path.Combine(root, "docs", "BACKLOG.md");
+        bool entriesWritten = constats.Count == 0; // rien à écrire → rien à promettre
         foreach ((string path, string content) in artifacts)
         {
-            if (File.Exists(path))
+            try
             {
-                writer.WriteLine($"  existant, non écrasé : {Program.Relative(root, path)}");
-                continue;
-            }
+                if (File.Exists(path))
+                {
+                    if (path == backlogPath && constats.Count > 0)
+                    {
+                        // BACKLOG préexistant (cas brownfield typique) : APPEND sous
+                        // marqueur daté, jamais d'écrasement ni d'abandon silencieux.
+                        AppendBacklog(path, nom, date, backlogEntries.ToString());
+                        entriesWritten = true;
+                        writer.WriteLine($"  mis à jour (append sous marqueur)  {Program.Relative(root, path)}");
+                        continue;
+                    }
 
-            Program.Write(path, content);
-            writer.WriteLine($"  créé  {Program.Relative(root, path)}");
+                    writer.WriteLine($"  existant, non écrasé : {Program.Relative(root, path)}");
+                    continue;
+                }
+
+                Program.Write(path, content);
+                if (path == backlogPath && constats.Count > 0)
+                {
+                    entriesWritten = true;
+                }
+
+                writer.WriteLine($"  créé  {Program.Relative(root, path)}");
+            }
+            catch (Exception ex)
+            {
+                writer.WriteLine($"✖ écriture impossible sur {Program.Relative(root, path)} : {ex.Message}");
+                writer.WriteLine("  les constats ne sont PAS enregistrés — corrigez et relancez `sdd adopt`.");
+                return 1;
+            }
         }
 
-        Directory.CreateDirectory(Path.Combine(root, "docs", "specs"));
+        if (!Directory.Exists(Path.Combine(root, "docs", "specs")))
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.Combine(root, "docs", "specs"));
+            }
+            catch (Exception ex)
+            {
+                writer.WriteLine($"✖ impossible de créer docs/specs/ : {ex.Message}");
+                return 1;
+            }
+        }
 
         writer.WriteLine();
-        if (constats.Count > 0)
+        if (constats.Count > 0 && entriesWritten)
         {
             writer.WriteLine($"→ {constats.Count} constats enregistrés dans docs/BACKLOG.md (BUK-001…BUK-{constats.Count:D3}), statut ouvert.");
         }
-        else
+        else if (constats.Count == 0)
         {
             writer.WriteLine("→ aucune entrée BACKLOG créée (audit sans constat sur les patterns connus).");
         }
@@ -115,6 +152,45 @@ public static class Adopt
     }
 
     // ---------- collecte ----------
+
+    /// <summary>Append des BUK d'audit dans un BACKLOG préexistant, sous un marqueur
+    /// daté `&lt;!-- sdd-adopt nom date --&gt;`. Le contenu existant n'est jamais modifié.</summary>
+    private static void AppendBacklog(string path, string nom, string date, string entries)
+    {
+        var lines = File.ReadAllLines(path).ToList();
+        string marker = $"<!-- sdd-adopt {nom} {date} -->";
+        var block = new List<string> { "", marker, "" };
+        block.AddRange(entries.Replace("\r\n", "\n").TrimEnd('\n').Split('\n'));
+
+        int header = -1;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            if (lines[i].StartsWith("## Entrées", StringComparison.Ordinal))
+            {
+                header = i;
+                break;
+            }
+        }
+
+        if (header < 0)
+        {
+            lines.Add("");
+            lines.Add("## Entrées");
+            lines.AddRange(block);
+        }
+        else
+        {
+            int end = header + 1;
+            while (end < lines.Count && !lines[end].StartsWith("## ", StringComparison.Ordinal))
+            {
+                end++;
+            }
+
+            lines.InsertRange(end, block);
+        }
+
+        File.WriteAllText(path, string.Join('\n', lines) + "\n", new System.Text.UTF8Encoding(false));
+    }
 
     private sealed record SrcFile(string Rel, string[] Lines);
 

@@ -58,12 +58,6 @@ public static class Decide
             return 1;
         }
 
-        if (!Git.IsRepo(root))
-        {
-            writer.WriteLine("✖ `sdd decide` exige un dépôt git (commit atomique garanti) — `git init` d'abord.");
-            return 1;
-        }
-
         var spec = SpecModel.Load(specPath);
         (int Index, string Text)? decision = null;
         foreach ((int idx, string text) in spec.DecisionLines())
@@ -78,6 +72,35 @@ public static class Decide
         if (decision is null)
         {
             writer.WriteLine($"✖ {dId} introuvable dans la section « ## Décisions » de {spec.Name}.md");
+            return 1;
+        }
+
+        // 0b) validation structurelle AVANT toute écriture (micro-fix audit externe) :
+        //     une spec héritée sans Version ni Historique produisait des bumps « v »
+        //     fantômes et des insertions à l'aveugle (document corrompu en silence).
+        var manquants = new List<string>();
+        if (spec.FindLine("**Version**") < 0 || spec.Version().Length == 0)
+        {
+            manquants.Add("la ligne « **Version** : X.Y »");
+        }
+
+        if (spec.FindLine("## Historique") < 0)
+        {
+            manquants.Add("la section « ## Historique »");
+        }
+
+        if (manquants.Count > 0)
+        {
+            writer.WriteLine($"✖ {spec.Name}.md est incomplet pour `sdd decide` : il manque {string.Join(" et ", manquants)}.");
+            writer.WriteLine("  document INTACT (aucune écriture) — ajoutez les sections, puis relancez.");
+            return 1;
+        }
+
+        // précondition git APRÈS les validations spécifiques (message d'erreur le plus
+        // précis d'abord) ; indispensable pour la garantie de commit atomique.
+        if (!Git.IsRepo(root))
+        {
+            writer.WriteLine("✖ `sdd decide` exige un dépôt git (commit atomique garanti) — `git init` d'abord.");
             return 1;
         }
 
@@ -100,21 +123,16 @@ public static class Decide
         string newLine = $"- **{dId}** {body} — **RATIFIÉE {shortDate}**";
         spec.Lines[decision.Value.Index] = newLine;
 
-        // 2) bump version mineure + append Historique
+        // 2) bump version mineure + append Historique (sections garanties par la validation 0b)
         string oldVer = spec.Version();
-        string newVer = "";
-        int histLine = spec.FindLine("## Historique");
-        if (oldVer.Length > 0)
-        {
-            string[] parts = oldVer.Split('.');
-            newVer = $"{parts[0]}.{int.Parse(parts[1], CultureInfo.InvariantCulture) + 1}";
-            int vIdx = spec.FindLine("**Version**");
-            spec.Lines[vIdx] = Regex.Replace(spec.Lines[vIdx], @"\d+\.\d+", newVer);
-        }
+        string[] partsV = oldVer.Split('.');
+        string newVer = $"{partsV[0]}.{int.Parse(partsV[1], CultureInfo.InvariantCulture) + 1}";
+        int vIdx = spec.FindLine("**Version**");
+        spec.Lines[vIdx] = Regex.Replace(spec.Lines[vIdx], @"\d+\.\d+", newVer);
 
-        string histEntry = $"- v{(newVer.Length > 0 ? newVer : "x.y")} ({now}) : décision {dId} ratifiée par le responsable";
-        if (histLine >= 0)
+        string histEntry = $"- v{newVer} ({now}) : décision {dId} ratifiée par le responsable";
         {
+            int histLine = spec.FindLine("## Historique");
             int end = spec.SectionEnd(histLine + 1);
             int last = histLine;
             for (int i = histLine + 1; i < end; i++)
@@ -126,12 +144,6 @@ public static class Decide
             }
 
             spec.Lines.Insert(last + 1, histEntry);
-        }
-        else
-        {
-            int insertAt = spec.FindLine("**Responsable**") + 1;
-            insertAt = insertAt > 0 ? insertAt : Math.Min(1, spec.Lines.Count);
-            spec.Lines.InsertRange(insertAt, new[] { "", "## Historique", histEntry });
         }
 
         spec.Save();

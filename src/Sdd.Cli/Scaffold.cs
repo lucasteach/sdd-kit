@@ -109,8 +109,11 @@ public static class Scaffold
                 run: |
                   if [ -f src/Sdd.Cli/Sdd.Cli.csproj ]; then
                     dotnet run --project src/Sdd.Cli -- lint --ci
+                  elif command -v sdd >/dev/null 2>&1; then
+                    sdd lint --ci   # CLI déjà installée (dotnet tool install -g sdd)
                   else
-                    sdd lint --ci   # projet sans CLI vendue : `sdd` installé (dotnet tool)
+                    echo '::error title=CI SDD::CLI « sdd » introuvable dans ce runner : vendez src/Sdd.Cli dans le repo ou installez l outil (dotnet tool install -g sdd --add-source <feed>).' >&2
+                    exit 2
                   fi
 
         """;
