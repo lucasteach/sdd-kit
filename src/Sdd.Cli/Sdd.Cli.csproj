@@ -13,6 +13,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <Authors>lucasteach</Authors>
     <PackageProjectUrl>https://github.com/lucasteach/sdd-kit</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/lucasteach/sdd-kit.git</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>sdd</ToolCommandName>
