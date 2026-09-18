@@ -88,7 +88,9 @@ public static class Scaffold
         return text + tail;
     }
 
-    /// <summary>CI gate fonctionnel (REQ-CLI09) — remplace le placeholder P1/P2.</summary>
+    /// <summary>CI gate fonctionnel (REQ-CLI09) — tests + lint, avec guard
+    /// d'installation de la CLI (le dogfooding ne doit pas masquer un trou
+    /// « command not found » pour les projets sans CLI vendue).</summary>
     public static string Workflow() =>
         """
         # CI gate SDD (REQ-CLI09) — bloquant sur erreur, tolérant aux warnings.
@@ -105,6 +107,13 @@ public static class Scaffold
               - uses: actions/setup-dotnet@v4
                 with:
                   dotnet-version: 10.0.x
+              - name: tests SDD (régressions protégées par le gate)
+                run: |
+                  if [ -f tests/Sdd.Tests/Sdd.Tests.csproj ]; then
+                    dotnet run --project tests/Sdd.Tests
+                  else
+                    echo "pas de tests/Sdd.Tests dans ce projet — skip"
+                  fi
               - name: sdd lint --ci
                 run: |
                   if [ -f src/Sdd.Cli/Sdd.Cli.csproj ]; then

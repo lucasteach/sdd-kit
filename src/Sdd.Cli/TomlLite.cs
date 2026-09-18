@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 namespace Sdd;
 
-public sealed record Waiver(string Regle, string Portee, string Justification);
+public sealed record Waiver(string Regle, string Portee, string Justification, int Line = 0);
 
 /// <summary>
 /// Lecteur sdd.toml minimal (sections [projet], [doctrine], [[waiver]]).
@@ -32,8 +32,10 @@ public static class TomlLite
         Waiver? current = null;
         var kv = new Regex(@"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*""([^""]*)""\s*(?:#.*)?$");
 
+        int lineNo = 0;
         foreach (string raw in File.ReadAllLines(path))
         {
+            lineNo++;
             string line = raw.Trim();
             if (line.Length == 0 || line.StartsWith('#'))
             {
@@ -45,7 +47,7 @@ public static class TomlLite
             if (line == "[[waiver]]")
             {
                 section = "waiver";
-                current = new Waiver("", "", "");
+                current = new Waiver("", "", "", lineNo);
                 meta.Waivers.Add(current);
                 continue;
             }

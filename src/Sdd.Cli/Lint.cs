@@ -69,15 +69,38 @@ public static class Lint
         // waivers
         var waived = new List<Finding>();
         var kept = new List<Finding>();
+        var waiverUsed = new bool[meta.Waivers.Count];
         foreach (Finding f in findings)
         {
-            if (meta.Waivers.Any(w => MatchWaiver(w, f)))
+            int wi = -1;
+            for (int k = 0; k < meta.Waivers.Count; k++)
+            {
+                if (MatchWaiver(meta.Waivers[k], f))
+                {
+                    wi = k;
+                    break;
+                }
+            }
+
+            if (wi >= 0)
             {
                 waived.Add(f);
+                waiverUsed[wi] = true;
             }
             else
             {
                 kept.Add(f);
+            }
+        }
+
+        // audit du registre (micro-fix audit II) : un waiver déclaré mais jamais
+        // déclenché est un typo ou une dette — il doit être visible, pas silencieux.
+        for (int k = 0; k < meta.Waivers.Count; k++)
+        {
+            if (!waiverUsed[k] && !string.IsNullOrWhiteSpace(meta.Waivers[k].Regle))
+            {
+                kept.Add(new Finding(Sev.Warning, "SDD-WVR", "waiver défini mais jamais utilisé",
+                    [$"sdd.toml:{meta.Waivers[k].Line} waiver « {meta.Waivers[k].Regle} » — corrigez la règle visée ou retirez l'entrée"]));
             }
         }
 
@@ -160,10 +183,7 @@ public static class Lint
             return result;
         }
 
-        foreach (string file in Directory.GetFiles(docs, "*.md")
-                     .Concat(Directory.Exists(Path.Combine(docs, "specs"))
-                         ? Directory.GetFiles(Path.Combine(docs, "specs"), "SPEC-*.md")
-                         : Array.Empty<string>()))
+        foreach (string file in Directory.GetFiles(docs, "*.md", SearchOption.AllDirectories))
         {
             if (!File.Exists(file))
             {

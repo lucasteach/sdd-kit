@@ -12,6 +12,13 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
+      - name: tests SDD (régressions protégées par le gate)
+        run: |
+          if [ -f tests/Sdd.Tests/Sdd.Tests.csproj ]; then
+            dotnet run --project tests/Sdd.Tests
+          else
+            echo "pas de tests/Sdd.Tests dans ce projet — skip"
+          fi
       - name: sdd lint --ci
         run: |
           if [ -f src/Sdd.Cli/Sdd.Cli.csproj ]; then

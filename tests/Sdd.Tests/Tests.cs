@@ -52,6 +52,10 @@ public static class Tests
             Test_Adopt_BacklogPreexistant(sandbox);
             Test_Workflow_Installable(startup);
             Test_Decide_SpecIncomplete(sandbox);
+            Test_Status_SansSpecEnVol(sandbox);
+            Test_L003_DocsAnidados(sandbox);
+            Test_WaiverInutilise(sandbox);
+            Test_Workflow_AvecTests();
         }
         finally
         {
@@ -377,7 +381,7 @@ public static class Tests
         File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-C.md"),
             Deco("C", "Brouillon", "- **D1** a — RATIFIÉE\n- **D2** b — RATIFIÉE\n"));
         File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-EXEMPLE.md"),
-            Deco("EXEMPLE", "Brouillon", "- **D1** z — ouverte\n")
+            Deco("EXEMPLE", "En phase", "- **D1** z — ouverte\n")
             + "\n## Phases\n\n| Phase | Contenu | Jalon visible | Statut |\n|---|---|---|---|\n"
             + "| P1 | Composant X | livraison composant | **approuvée** |\n"
             + "| P2 | Intégration | intégration en production | à approuver |\n");
@@ -647,7 +651,20 @@ public static class Tests
         Check(outp2.Contains("SDD-L001 ERREUR", StringComparison.Ordinal) && outp2.Contains("erreurs=1", StringComparison.Ordinal),
               "erreur cassante : ligne condensée SDD-L001 ERREUR + erreurs=1");
         Check(CaptureExit(dir) == 1, "exit code 1 quand ≥1 erreur");
-        Check(!outp2.Contains("::error", StringComparison.Ordinal), "pas d'annotations GHA hors CI (GITHUB_ACTIONS non défini)");
+        string gha = Environment.GetEnvironmentVariable("GITHUB_ACTIONS");
+        try
+        {
+            Environment.SetEnvironmentVariable("GITHUB_ACTIONS", null);
+            Check(!Capture(dir, "lint", "--ci").Contains("::error", StringComparison.Ordinal),
+                  "hors CI : pas d'annotations GHA (GITHUB_ACTIONS non défini)");
+            Environment.SetEnvironmentVariable("GITHUB_ACTIONS", "true");
+            Check(Capture(dir, "lint", "--ci").Contains("::error", StringComparison.Ordinal),
+                  "dans CI : annotations ::error émises pour chaque erreur");
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("GITHUB_ACTIONS", gha);
+        }
     }
 
     private static int CaptureExit(string dir)
@@ -822,6 +839,67 @@ public static class Tests
         Check(output.Contains("**Version**", StringComparison.Ordinal) && output.Contains("## Historique", StringComparison.Ordinal),
               "l'erreur nomme les DEUX sections manquantes");
         Check(File.ReadAllBytes(specPath).SequenceEqual(before), "document byte-idéntique (aucune corruption)");
+    }
+
+    // ---------- micro-fix audit externe II (BUK-012..015) ----------
+
+    private static void Test_Status_SansSpecEnVol(string sandbox)
+    {
+        Console.WriteLine("T32 — status sans spec en vol : EN VOL — , JALON — , compteurs = Statut réel (BUK-012)");
+        string dir = FreshProject(sandbox, "status-vol");
+        Directory.CreateDirectory(Path.Combine(dir, "docs", "specs"));
+        File.WriteAllText(Path.Combine(dir, "sdd.toml"), "[projet]\nnom = \"t\"\n\n[doctrine]\nversion = \"1.0\"\n");
+        File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-ALPHA.md"),
+            "**Statut** : Brouillon\n\n## Historique\n- v1.0 : x\n");
+        File.WriteAllText(Path.Combine(dir, "docs", "specs", "SPEC-BETA.md"),
+            "**Statut** : Approuvée\n\n## Historique\n- v1.0 : x\n");
+        File.WriteAllText(Path.Combine(dir, "docs", "AGENT_STATE.md"),
+            "| Champ | Valeur |\n|---|---|\n| Spec de référence | — |\n| Phase active | — |\n");
+        var buf = new StringWriter();
+        Status.Run(dir, buf);
+        string outp = buf.ToString().Replace("\r\n", "\n");
+        Check(outp.Contains("EN VOL   —", StringComparison.Ordinal) && !outp.Contains("◐", StringComparison.Ordinal),
+              "aucune spec en vol : « — » sans progression inventée");
+        Check(outp.Contains("JALON    —", StringComparison.Ordinal), "jalon — aussi");
+        Check(outp.Contains("Brouillon 1 · Approuvée 1 · En phase 0", StringComparison.Ordinal),
+              "compteurs issus UNIQUEMENT des **Statut** (la présence de fichiers SPEC-* ne force rien)");
+    }
+
+    private static void Test_L003_DocsAnidados(string sandbox)
+    {
+        Console.WriteLine("T33 — L003 sur docs anidé (option a : glob récursif) (BUK-013)");
+        string dir = MakeFixture(sandbox, "nested", "# Spec\n## Historique\n- v1.0 : x\n");
+        Directory.CreateDirectory(Path.Combine(dir, "docs", "guides"));
+        File.WriteAllText(Path.Combine(dir, "docs", "guides", "note.md"),
+            "# Guide\n\nSe référer à SPEC-FANTOME.md pour le détail.\n");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 1, "docs/guides/note.md n'est plus invisible : exit 1");
+        Check(output.Contains("SDD-L003", StringComparison.Ordinal) && output.Contains("guides/note.md", StringComparison.Ordinal),
+              "l'erreur localise guides/note.md");
+    }
+
+    private static void Test_WaiverInutilise(string sandbox)
+    {
+        Console.WriteLine("T34 — waiver SDD-L999 jamais déclenché : audible (BUK-014)");
+        string dir = MakeFixture(sandbox, "waiver-typo", "# Spec\n## Historique\n- v1.0 : x\n",
+            tomlExtra: "\n[[waiver]]\nregle = \"SDD-L999\"\nportee = \"\"\njustification = \"coquille volontaire pour le test \"\n");
+        var (exit, output) = RunLint(dir);
+        Check(exit == 0, "avertissement, pas blocant (politique des warnings)");
+        Check(output.Contains("SDD-WVR", StringComparison.Ordinal) && output.Contains("SDD-L999", StringComparison.Ordinal),
+              "le waiver typo est nommément listé");
+        Check(Regex.IsMatch(output, @"sdd\.toml:\d+ waiver « SDD-L999 »"), "avec la ligne exacte du sdd.toml")
+            ;
+        Check(output.Contains("1 warnings", StringComparison.Ordinal), "comptabilisé comme warning");
+    }
+
+    private static void Test_Workflow_AvecTests()
+    {
+        Console.WriteLine("T35 — le gate CI court les tests (BUK-015)");
+        string wf = Scaffold.Workflow();
+        Check(wf.Contains("dotnet run --project tests/Sdd.Tests", StringComparison.Ordinal),
+              "étape de tests présente dans la template");
+        Check(wf.IndexOf("tests SDD", StringComparison.Ordinal) < wf.IndexOf("sdd lint --ci", StringComparison.Ordinal),
+              "les tests tournent avant le lint");
     }
 
     private static string[] Sample(string resource)

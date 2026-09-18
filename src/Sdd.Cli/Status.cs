@@ -36,19 +36,19 @@ public static class Status
             }
         }
 
+        // micro-fix audit II : « en vol » UNIQUEMENT depuis AGENT_STATE (aucune
+        // heuristique de nom — tout fichier s'appelle SPEC-… — ni P1 forcé).
         string enVolSpec = CellValue(agentState, "Spec de référence");
         string phaseActive = CellValue(agentState, "Phase active");
-        string enVolName = SpecToken(enVolSpec) ?? specs.Select(s => s.Name).FirstOrDefault(n => n.Contains("SPEC")) ?? "";
+        string enVolToken = SpecToken(enVolSpec) ?? "";
+        string enVolName = specs.FirstOrDefault(s => s.Name == enVolToken)?.Name ?? "";
         string phaseId = Regex.Match(phaseActive, @"P\d+").Value;
-        if (phaseId.Length == 0 && enVolName.Length > 0)
-        {
-            phaseId = "P1";
-        }
 
+        // compteurs : dérivés SEULEMENT du **Statut** réel de chaque spec
         int brouillon = 0, approuvees = 0, enPhase = 0;
         foreach (SpecInfo s in specs)
         {
-            if (enVolName.Length > 0 && s.Name == enVolName)
+            if (s.Statut.Contains("en phase", StringComparison.OrdinalIgnoreCase))
             {
                 enPhase++;
             }
@@ -119,9 +119,9 @@ public static class Status
             else if (line.StartsWith("- [ ]", StringComparison.Ordinal)) { taskTotal++; taskRouges++; }
         }
 
-        SpecInfo? vol = specs.FirstOrDefault(s => s.Name == enVolName);
+        SpecInfo? vol = enVolName.Length > 0 ? specs.FirstOrDefault(s => s.Name == enVolName) : null;
         string phaseLabel = vol?.PhaseContenu(phaseId) ?? "";
-        string jalon = vol?.NextJalon(phaseId) ?? "—";
+        string jalon = vol is not null && phaseId.Length > 0 ? vol.NextJalon(phaseId) : "—";
 
         int pct = ComputeProgress(agentState, vol, phaseId);
 
@@ -148,7 +148,7 @@ public static class Status
         o.WriteLine(Row(CountRow("BACKLOG", backTotal, $"ouvert {backOuvert} · clos {backClos}")));
         o.WriteLine(Row(CountRow("TÂCHES BORNÉES", taskTotal, $"vertes {taskVertes} · rouges {taskRouges}")));
         o.WriteLine('├' + new string('─', Inner) + '┤');
-        o.WriteLine(Row(EnVolRow(enVolName.Length > 0 ? $"{enVolName} · {(phaseId.Length > 0 ? phaseId + " " : "")}({phaseLabel})" : "—", pct)));
+        o.WriteLine(Row(EnVolRow(enVolName.Length > 0 ? $"{enVolName} · {(phaseId.Length > 0 ? phaseId + " " : "")}({phaseLabel})" : "—", enVolName.Length > 0 ? pct : -1)));
         o.WriteLine(Row(LabelRow("JALON", jalon)));
         if (alerts.Count > 0)
         {
@@ -191,8 +191,13 @@ public static class Status
 
     private static string EnVolRow(string content, int pct)
     {
-        string prog = $"◐ {pct} %";
         string prefix = "  " + "EN VOL".PadRight(9);
+        if (pct < 0)
+        {
+            return prefix + content; // pas de spec en vol : « — » sans progression
+        }
+
+        string prog = $"◐ {pct} %";
         int room = ProgEndCol - prog.Length; // la progression se termine a ProgEndCol (exclusif)
         int contentStart = prefix.Length;
         if (contentStart + content.Length + 2 + prog.Length <= ProgEndCol)
