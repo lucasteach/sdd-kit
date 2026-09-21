@@ -9,4 +9,4 @@ version = "1.0"
 [[waiver]]
 regle = "SDD-L003"
 portee = "docs/specs/SPEC-OUTIL-SDD.md"
-justification = "SPEC-CAS-VIZ-LIGNAGE vit dans le repo du cas d'etude projet-source, hors de ce repo ; la note croisee est documentaire et volontairement non resoluble localement."
+justification = "SPEC-CAS-VIZ-LIGNAGE vit dans le repo du projet-source (cas d'etude), hors de ce repo ; la note croisee est documentaire et volontairement non resoluble localement."

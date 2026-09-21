@@ -40,8 +40,8 @@ Spécification **docs-only** : aucun code avant approbation du responsable.
   comme spec UI ; mockup dashboard comme vision v3 non normative).
 - **Exclus** : GUI v1 (maintien prématuré pour un outil de docs) ;
   génération automatique de prose de spec (Propos, Portée,
-  décisions du responsable — domaine humain) ; intégration spécifique à
-  projet-source (l'outil est agnostique ; projet-source est le cas d'étude).
+  décisions du responsable — domaine humain) ; intégration spécifique au
+  projet-source (l'outil est agnostique ; il sert de cas d'étude).
 - **Frontière dure** : la CLI n'écrit jamais de prose de spec ;
   elle fournit squelette, arbitre et trace. Les décisions restent
   propriété de l'humain.
@@ -234,7 +234,7 @@ avant P4, et seulement si le dogfooding démontre l'utilité.
 
 ## Impacts
 
-- **Sur projet-source** : aucun — projet-source reste le cas d'étude, pas une
+- **Sur le projet-source** : aucun — il reste le cas d'étude, pas une
   dépendance de la CLI. Migration optionnelle si le responsable le décide.
 - **Sur l'équipe** : onboarding d'un nouveau projet réduit de
   plusieurs semaines à une session SDD-Kit.
@@ -244,7 +244,7 @@ avant P4, et seulement si le dogfooding démontre l'utilité.
 
 ## Notes croisées
 
-- projet-source est le **cas d'étude #1** : la doctrine
+- Le projet-source est le **cas d'étude #1** : la doctrine
   est extraite de son historique de 50+ sessions.
 - SPEC-CAS-VIZ-LIGNAGE contient des décisions ratifiées — exemple
   concret d'usage futur de REQ-CLI06.
