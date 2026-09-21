@@ -2,7 +2,7 @@
 **Version** : 1.1 (Brouillon — P1 approuvée par le responsable 2026-09-16)
 **Statut** : Brouillon
 **Créée** : 2026-09-16
-**Responsable** : lucasteach
+**Responsable** : Owner
 
 ## Historique
 - v1.0 (16/09/2026) : Brouillon initial
