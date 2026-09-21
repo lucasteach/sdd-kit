@@ -450,8 +450,9 @@ public static class Tests
         string[] lines = buf.ToString().Replace("\r\n", "\n").TrimEnd('\n').Split('\n');
         Check(lines[0].StartsWith('┌') && lines[^1].StartsWith('└'), "status repo : box complet");
         Check(lines.All(l => l.Length == 64), "toutes les lignes du box à 64 caractères");
-        Check(lines.Any(l => l.Contains("◐ 100 %", StringComparison.Ordinal)),
-              "progression réelle : P1–P4 toutes approuvées (P3 ratifiée par le responsable 16/09) → ◐ 100 %");
+        // AGENT_STATE retiré du repo (archivage) : EN VOL « — » est le rendu honnête attendu
+        Check(lines.Any(l => l.Contains("EN VOL   —", StringComparison.Ordinal)),
+              "repo sans AGENT_STATE : EN VOL — (aucune progression inventée)");
     }
 
     // ---------- P3 : decide / trace / agent-brief ----------
