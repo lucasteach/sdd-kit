@@ -707,7 +707,7 @@ public static class Tests
         string v2 = Capture(Directory.GetCurrentDirectory(), "-v");
         Check(v1.Contains($"sdd {attendue}", StringComparison.Ordinal), $"--version → sdd {attendue}");
         Check(v2.Contains($"sdd {attendue}", StringComparison.Ordinal), "-v idem (aucune littérale dupliquée)");
-        Check(attendue == "1.0.4", "l'assembly est bien 1.0.4 (garde anti-dérive du csproj)");
+        Check(attendue == "1.0.5", "l'assembly est bien 1.0.5 (garde anti-dérive du csproj)");
         Check(v1.Contains("doctrine v1.0", StringComparison.Ordinal), "pin doctrine affiché");
     }
 
