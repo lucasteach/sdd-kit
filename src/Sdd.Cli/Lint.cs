@@ -14,12 +14,20 @@ public sealed record Finding(Sev Severity, string Rule, string Title, List<strin
 public static class Lint
 {
     /// <summary>
-    /// Liste noire unique (micro-fix i18n 1.0.1) : termes non-FR herites des
-    /// textes fondateurs spanglish. SDD-L008 les signale en warning dans les
-    /// docs du projet audite ; le test de garde T27 l'utilise aussi.
-    /// Pour etendre : ajouter le terme ici, un seul endroit.
+    /// Liste noire unique des termes étrangers (micro-fix i18n 1.0.1, étendue v1.1) :
+    /// spanglish hérité des textes fondateurs + l'anglicisme « owner ».
+    /// SDD-L008 les signale en warning dans les docs du projet audité, selon sa locale
+    /// (D3 v1.1 : la langue du projet fait foi) — « owner » n'est légitime que dans un
+    /// projet anglophone. Le test de garde T27 l'utilise aussi.
+    /// Pour étendre : ajouter le terme ici, un seul endroit.
     /// </summary>
     public static readonly string[] LangBlacklist = { "pospuesta", "hallazgo", "hallazgos", "owner", "continúa", "cabecera" };
+
+    /// <summary>Termes étrangers applicables à une locale de projet donnée.</summary>
+    public static IReadOnlyList<string> BlacklistFor(string? lang) =>
+        Locale.Normalize(lang) == "fr"
+            ? LangBlacklist
+            : LangBlacklist.Where(t => t != "owner").ToArray();
 
     private static readonly Regex SpecToken = new(@"SPEC-[A-Z][A-Z0-9-]*", RegexOptions.Compiled);
     private static readonly string[] CodeFences =
@@ -63,7 +71,7 @@ public static class Lint
 
             CheckSpecRefs(relPath, lines, fences, existingSpecs, findings, ref checks);
             CheckMagicNumbers(relPath, lines, fences, findings, ref checks);
-            CheckLanguage(relPath, lines, fences, findings, ref checks);
+            CheckLanguage(relPath, lines, fences, findings, ref checks, meta.EffectiveLang);
         }
 
         // waivers
@@ -239,13 +247,28 @@ public static class Lint
 
             string block = string.Join('\n', lines[i..end]);
             checks++;
+            // motifs bilingues : une spec EN ne doit pas échouer sur des motifs FR, ni l'inverse
             var missing = new List<string>();
-            if (!block.Contains("**Étant donné**", StringComparison.Ordinal)) missing.Add("Étant donné");
-            if (!block.Contains("**Quand**", StringComparison.Ordinal)) missing.Add("Quand");
-            if (!block.Contains("**Alors**", StringComparison.Ordinal)) missing.Add("Alors");
+            if (!block.Contains("**Étant donné**", StringComparison.Ordinal)
+                && !block.Contains("**Given**", StringComparison.Ordinal))
+            {
+                missing.Add("Étant donné/Given");
+            }
+
+            if (!block.Contains("**Quand**", StringComparison.Ordinal)
+                && !block.Contains("**When**", StringComparison.Ordinal))
+            {
+                missing.Add("Quand/When");
+            }
+
+            if (!block.Contains("**Alors**", StringComparison.Ordinal)
+                && !block.Contains("**Then**", StringComparison.Ordinal))
+            {
+                missing.Add("Alors/Then");
+            }
             if (missing.Count > 0)
             {
-                string reqId = lines[i].Substring(4).Split(' ')[0];
+                string reqId = Regex.Match(lines[i], @"^###\s+(REQ-[A-Za-z0-9-]+)").Groups[1].Value;
                 findings.Add(new Finding(Sev.Error, "SDD-L001", "REQ sans Given/When/Then",
                     [$"{rel}:{i + 1} {reqId} — manque « {string.Join(", ", missing)} »"]));
             }
@@ -254,7 +277,7 @@ public static class Lint
 
     private static void CheckDecisions(string rel, string[] lines, bool[] fences, List<Finding> findings, ref int checks)
     {
-        int start = Section(lines, fences, "## Décisions");
+        int start = SectionAny(lines, fences, "## Décisions", "## Decisions");
         if (start < 0)
         {
             return;
@@ -269,7 +292,11 @@ public static class Lint
             }
 
             checks++;
-            string[] statutWords = { "ratifiée", "ratifiee", "différée", "différee", "ouverte", "à ratifier", "en attente", "approuvée" };
+            string[] statutWords =
+            {
+                "ratifiée", "ratifiee", "différée", "différee", "ouverte", "à ratifier", "en attente", "approuvée",
+                "ratified", "deferred", "opened", "open", "to ratify", "pending", "approved",
+            };
             bool hasStatus = statutWords.Any(word => lines[i].Contains(word, StringComparison.OrdinalIgnoreCase));
             if (!hasStatus)
             {
@@ -282,12 +309,7 @@ public static class Lint
 
     private static void CheckPhases(string rel, string[] lines, bool[] fences, List<Finding> findings, ref int checks)
     {
-        int start = Section(lines, fences, "## Phases");
-        if (start < 0)
-        {
-            start = Section(lines, fences, "## Phases d'implémentation");
-        }
-
+        int start = SectionAny(lines, fences, "## Phases", "## Implementation phases");
         if (start < 0)
         {
             return;
@@ -315,7 +337,7 @@ public static class Lint
 
     private static void CheckBacklog(string rel, string[] lines, bool[] fences, List<Finding> findings, ref int checks)
     {
-        int start = Section(lines, fences, "## Entrées");
+        int start = SectionAny(lines, fences, "## Entrées", "## Entries");
         if (start < 0)
         {
             return;
@@ -338,17 +360,20 @@ public static class Lint
             }
 
             string entry = string.Join('\n', lines[i..(j + 1)]);
-            bool hasOrigin = entry.Contains("origine", StringComparison.OrdinalIgnoreCase)
+            bool hasOrigin = entry.Contains("origin", StringComparison.OrdinalIgnoreCase)
                              || Regex.IsMatch(entry, @"\d{4}-\d{2}-\d{2}");
             bool hasStatus = lines[i].StartsWith("- [x]", StringComparison.Ordinal)
                              || entry.Contains("clos", StringComparison.OrdinalIgnoreCase)
+                             || entry.Contains("closed", StringComparison.OrdinalIgnoreCase)
                              || entry.Contains("ouvert", StringComparison.OrdinalIgnoreCase)
-                             || entry.Contains("en attente", StringComparison.OrdinalIgnoreCase);
+                             || entry.Contains("open", StringComparison.OrdinalIgnoreCase)
+                             || entry.Contains("en attente", StringComparison.OrdinalIgnoreCase)
+                             || entry.Contains("pending", StringComparison.OrdinalIgnoreCase);
             if (!hasOrigin && !hasStatus)
             {
                 string id = Regex.Match(entry, @"[A-Z]+-\d+").Value;
                 findings.Add(new Finding(Sev.Error, "SDD-L004", "entrée BACKLOG sans origine ni statut",
-                    [$"{rel}:{i + 1} {id} — ajouter (YYYY-MM-DD, origine : …) et statut ouvert/clos"]));
+                    [$"{rel}:{i + 1} {id} — ajouter (YYYY-MM-DD, origine/origin : …) et statut ouvert/clos (open/closed)"]));
             }
         }
     }
@@ -356,10 +381,11 @@ public static class Lint
     private static void CheckHistorique(string rel, string[] lines, List<Finding> findings, ref int checks)
     {
         checks++;
-        if (!lines.Any(l => l.StartsWith("## Historique", StringComparison.Ordinal)))
+        if (!lines.Any(l => l.StartsWith("## Historique", StringComparison.Ordinal)
+                            || l.StartsWith("## History", StringComparison.Ordinal)))
         {
             findings.Add(new Finding(Sev.Warning, "SDD-L007", "spécification sans Historique",
-                [$"{rel}:1 ajouter « ## Historique » avec v1.0 (date) : Brouillon initial"]));
+                [$"{rel}:1 ajouter « ## Historique » (FR) ou « ## History » (EN) avec v1.0 (date) : Brouillon initial / initial Draft"]));
         }
     }
 
@@ -440,18 +466,19 @@ public static class Lint
         }
     }
 
-    private static void CheckLanguage(string rel, string[] lines, bool[] fences, List<Finding> findings, ref int checks)
+    private static void CheckLanguage(string rel, string[] lines, bool[] fences, List<Finding> findings, ref int checks, string lang)
     {
         checks++;
-        foreach (string term in LangBlacklist)
+        string label = Locale.Normalize(lang);
+        foreach (string term in BlacklistFor(label))
         {
             Regex rx = new($@"\b{Regex.Escape(term)}\b", RegexOptions.IgnoreCase | RegexOptions.Compiled);
             for (int i = 0; i < lines.Length; i++)
             {
                 if (!fences[i] && rx.IsMatch(lines[i]))
                 {
-                    findings.Add(new Finding(Sev.Warning, "SDD-L008", "langue non conforme au pin D3",
-                        [$"{rel}:{i + 1} terme « {term} » — FR par défaut (D3) : remplacer par l'équivalent français"]));
+                    findings.Add(new Finding(Sev.Warning, "SDD-L008", "langue non conforme à la locale du projet",
+                        [$"{rel}:{i + 1} terme « {term} » — projet « {label} » (D3) : écrire dans la langue déclarée"]));
                     break; // une occurrence par fichier et par terme
                 }
             }
@@ -465,6 +492,21 @@ public static class Lint
             if (!fences[i] && lines[i].StartsWith(header, StringComparison.Ordinal))
             {
                 return i + 1;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>Première section trouvée parmi plusieurs titres acceptés (FR/EN).</summary>
+    private static int SectionAny(string[] lines, bool[] fences, params string[] headers)
+    {
+        foreach (string h in headers)
+        {
+            int i = Section(lines, fences, h);
+            if (i >= 0)
+            {
+                return i;
             }
         }
 
