@@ -1,5 +1,5 @@
 ┌──────────────────────────────────────────────────────────────┐
-│  SDD-Kit · hello-sdd                  doctrine v1.0 (pin)    │
+│  SDD-Kit · hello-sdd                  doctrine v1.1 (pin)    │
 ├──────────────────────────────────────────────────────────────┤
 │  SPECS            1   Brouillon 0 · Approuvée 0 · En phase 1 │
 │  DÉCISIONS        1   ratifiée 0 · différée 0 · ouverte 1    │

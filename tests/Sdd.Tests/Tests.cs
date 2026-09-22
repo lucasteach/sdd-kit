@@ -60,6 +60,10 @@ public static class Tests
             Test_TomlMultiLigne(sandbox);
             Test_PhaseMentions_Partage(sandbox);
             Test_Exemple_HelloSdd(startup);
+            Test_Locale_Fr(sandbox);
+            Test_Locale_En(sandbox);
+            Test_Lint_Bilingue(sandbox);
+            Test_Lang_Args(sandbox);
         }
         finally
         {
@@ -135,21 +139,24 @@ public static class Tests
         Check(File.Exists(Path.Combine(dir, "sdd.toml")), "sdd.toml");
 
         string doctrine = Read(Path.Combine(dir, "docs", "DOCTRINE.md"));
-        Check(doctrine.StartsWith("# Doctrine SDD-Kit v1.0\n", StringComparison.Ordinal), "DOCTRINE verbatim : en-tête v1.0");
-        Check(doctrine.Contains("9. **Couche d'honnêteté**", StringComparison.Ordinal)
-              && doctrine.Contains("10. **Frontière outillage**", StringComparison.Ordinal), "DOCTRINE verbatim : règles 9 et 10 présentes");
+        Check(doctrine.StartsWith("# SDD-Kit Doctrine v1.1\n", StringComparison.Ordinal), "DOCTRINE verbatim : en-tête v1.1 (défaut EN)");
+        Check(doctrine.Contains("9. **Honesty layer**", StringComparison.Ordinal)
+              && doctrine.Contains("10. **Tooling boundary**", StringComparison.Ordinal), "DOCTRINE verbatim : règles 9 et 10 présentes");
+        Check(doctrine.Contains("11. **Namespace separation**", StringComparison.Ordinal)
+              && doctrine.Contains("14. **Volatile memory**", StringComparison.Ordinal), "DOCTRINE v1.1 : règles #11–#14 présentes (EN)");
 
         string backlog = Read(Path.Combine(dir, "docs", "BACKLOG.md"));
-        Check(backlog.Contains("Toute idée reportée s'enregistre ici dans le commit qui la pose.", StringComparison.Ordinal),
-              "BACKLOG : règle anti-oubli littérale");
+        Check(backlog.Contains("Every deferred idea is recorded here in the commit that defers it.", StringComparison.Ordinal),
+              "BACKLOG : règle anti-oubli littérale (EN)");
 
         string state = Read(Path.Combine(dir, "docs", "AGENT_STATE.md"));
-        Check(state.Contains("Lis docs/AGENT_STATE.md et continue", StringComparison.Ordinal), "AGENT_STATE : règle de reprise (FR, D3)");
-        Check(state.Contains("## Spécifications en vol", StringComparison.Ordinal), "AGENT_STATE : section en vol");
+        Check(state.Contains("Read docs/AGENT_STATE.md and continue", StringComparison.Ordinal), "AGENT_STATE : règle de reprise (EN)");
+        Check(state.Contains("## Specifications in flight", StringComparison.Ordinal), "AGENT_STATE : section en vol (EN)");
 
         string toml = Read(Path.Combine(dir, "sdd.toml"));
         Check(toml.Contains("nom = \"portail-citoyen\"", StringComparison.Ordinal), "sdd.toml : nom du projet");
-        Check(toml.Contains("version = \"1.0\"", StringComparison.Ordinal), "sdd.toml : doctrine pin v1.0");
+        Check(toml.Contains("version = \"1.1\"", StringComparison.Ordinal), "sdd.toml : doctrine pin v1.1");
+        Check(toml.Contains("lang = \"en\"", StringComparison.Ordinal), "sdd.toml : locale par défaut (en)");
 
         string wf = Read(Path.Combine(dir, ".github", "workflows", "sdd-lint.yml"));
         Check(wf.Contains("lint --ci", StringComparison.Ordinal) && wf.Contains("actions/setup-dotnet", StringComparison.Ordinal),
@@ -179,9 +186,9 @@ public static class Tests
 
     private static void Test_New_Cree_Spec_Complete(string sandbox)
     {
-        Console.WriteLine("T4 — sdd new PORTAIL-CITOYEN : squelette canonique");
+        Console.WriteLine("T4 — sdd new PORTAIL-CITOYEN : squelette canonique (--lang fr)");
         string dir = FreshProject(sandbox, "new-ok");
-        RunCli(dir, "init", "--projet", "portail-citoyen");
+        RunCli(dir, "init", "--projet", "portail-citoyen", "--lang", "fr");
         var (exit, _) = RunCli(dir, "new", "PORTAIL-CITOYEN");
         Check(exit == 0, "exit 0");
 
@@ -245,7 +252,8 @@ public static class Tests
 
     private static string MakeFixture(string sandbox, string label, string specContent,
         string backlog = "## Entrées\n\n- [ ] BUK-001 (2026-09-15, origine : test) truc → P1\n",
-        string? tomlExtra = null)
+        string? tomlExtra = null,
+        string? lang = null)
     {
         string dir = FreshProject(sandbox, label);
         Directory.CreateDirectory(Path.Combine(dir, "docs", "specs"));
@@ -255,7 +263,8 @@ public static class Tests
         File.WriteAllText(Path.Combine(dir, "docs", "AGENT_STATE.md"),
             "# AGENT_STATE\n\n## État courant\n\n| Champ | Valeur |\n|---|---|\n| Spec de référence | — |\n");
         File.WriteAllText(Path.Combine(dir, "sdd.toml"),
-            "[projet]\nnom = \"t\"\n\n[doctrine]\nversion = \"1.0\"\n" + (tomlExtra ?? ""));
+            "[projet]\nnom = \"t\"\n" + (lang is null ? "" : $"lang = \"{lang}\"\n")
+            + "\n[doctrine]\nversion = \"1.1\"\n" + (tomlExtra ?? ""));
         return dir;
     }
 
@@ -273,8 +282,8 @@ public static class Tests
             "# Spec\n## Historique\n- v1.0 (2026-09-15) : x\n\n## Exigences\n\n### REQ-T001 : x\n**Étant donné** a\n**Quand** b\n");
         var (exit, output) = RunLint(dir);
         Check(exit == 1, "exit 1 (erreur bloquante)");
-        Check(output.Contains("SDD-L001", StringComparison.Ordinal) && output.Contains("manque « Alors »", StringComparison.Ordinal),
-              "L001 signale Alors manquant");
+        Check(output.Contains("SDD-L001", StringComparison.Ordinal) && output.Contains("manque « Alors/Then »", StringComparison.Ordinal),
+              "L001 signale Alors/Then manquant (motif bilingue)");
         Check(output.Contains("1 erreurs", StringComparison.Ordinal), "compteur erreurs = 1");
     }
 
@@ -482,7 +491,7 @@ public static class Tests
         string spec = Read(Path.Combine(dir, "docs", "specs", "SPEC-PORTAIL-CITOYEN.md"));
         Check(spec.Contains("- **D1** Distribution par dotnet tool interne. — **RATIFIÉE ", StringComparison.Ordinal),
               "ligne D1 = texte du responsable + RATIFIÉE + date");
-        Check(spec.Contains("**Version** : 1.1", StringComparison.Ordinal), "bump version mineure 1.0 → 1.1");
+        Check(Regex.IsMatch(spec, @"\*\*Version\*\*\s*: 1\.1"), "bump version mineure 1.0 → 1.1");
         Check(Regex.IsMatch(spec, @"- v1\.1 \(\d{2}/\d{2}/\d{4}\) : décision D1 ratifiée par le responsable"),
               "Historique appendu (dd/MM/yyyy)");
         Check(RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "x", "--ratifiee").exit == 0, "re-décide idempotent-ish (exit 0)");
@@ -542,7 +551,7 @@ public static class Tests
         Check(outp.Contains("## Périmètre strict", StringComparison.Ordinal) && outp.Contains("Exclus (ne pas toucher", StringComparison.Ordinal),
               "périmètre inclus/exclus");
         Check(outp.Contains("— **RATIFIÉE", StringComparison.Ordinal), "décision ratifiée incrustée");
-        Check(outp.Contains("1. **Spec avant code**", StringComparison.Ordinal), "doctrine incrustée (verbatim docs/DOCTRINE.md)");
+        Check(outp.Contains("1. **Spec before code**", StringComparison.Ordinal), "doctrine incrustée (verbatim docs/DOCTRINE.md, locale du projet)");
         Check(outp.Contains("## Format de commit attendu", StringComparison.Ordinal)
               && outp.Contains("## Format de report attendu", StringComparison.Ordinal), "formats commit+report");
         Check(outp.Contains("destinataire : qwenwork", StringComparison.Ordinal), "destinataire");
@@ -650,7 +659,7 @@ public static class Tests
         Check(outp.TrimEnd().Length > 0 && outp.Split('\n').All(l => !l.StartsWith('✔')), "aucune sortie box/humaine");
 
         string specPath = Path.Combine(dir, "docs", "specs", "SPEC-EXEMPLE.md");
-        string spec = Read(specPath).Replace("**Alors** [À RATIFIER]", "// Alors retiré");
+        string spec = Read(specPath).Replace("**Then** [TO RATIFY]", "// Then removed");
         File.WriteAllText(specPath, spec);
         string outp2 = Capture(dir, "lint", "--ci");
         Check(outp2.Contains("SDD-L001 ERREUR", StringComparison.Ordinal) && outp2.Contains("erreurs=1", StringComparison.Ordinal),
@@ -721,8 +730,8 @@ public static class Tests
         string v2 = Capture(Directory.GetCurrentDirectory(), "-v");
         Check(v1.Contains($"sdd {attendue}", StringComparison.Ordinal), $"--version → sdd {attendue}");
         Check(v2.Contains($"sdd {attendue}", StringComparison.Ordinal), "-v idem (aucune littérale dupliquée)");
-        Check(attendue == "1.0.8", "l'assembly est bien 1.0.8 (garde anti-dérive du csproj)");
-        Check(v1.Contains("doctrine v1.0", StringComparison.Ordinal), "pin doctrine affiché");
+        Check(attendue == "1.1.0", "l'assembly est bien 1.1.0 (garde anti-dérive du csproj)");
+        Check(v1.Contains("doctrine v1.1", StringComparison.Ordinal), "pin doctrine affiché");
     }
 
     private static void Test_Adopt_Vide(string sandbox)
@@ -733,27 +742,35 @@ public static class Tests
         Check(exit == 0, "exit 0");
         Check(output.Contains("aucune entrée BACKLOG créée", StringComparison.Ordinal), "message explicite");
         Check(!output.Contains("BUK-001…BUK-000", StringComparison.Ordinal), "rang vide supprimé");
-        Check(Read(Path.Combine(dir, "docs", "BACKLOG.md")).Contains("_(vide)_", StringComparison.Ordinal), "BACKLOG reste vide");
+        Check(Read(Path.Combine(dir, "docs", "BACKLOG.md")).Contains("_(empty)_", StringComparison.Ordinal), "BACKLOG reste vide (défaut EN)");
     }
 
     private static void Test_I18n_Garde(string sandbox)
     {
-        Console.WriteLine("T27 — garde i18n (liste noire unique, extensible dans Lint.LangBlacklist)");
-        string[] texts =
+        Console.WriteLine("T27 — garde i18n : ressources FR/EN + SDD-L008 selon la locale du projet");
+        var parLocale = new (string Lang, string[] Files)[]
         {
-            Program.Resource("DOCTRINE.md"),
-            Program.Resource("SPEC-template.md"),
-            Scaffold.Backlog("t", null),
-            Scaffold.AgentState("t"),
-            Scaffold.Toml("t", null),
+            ("fr", new[] { "DOCTRINE.fr.md", "spec-template.fr.md", "AGENT_STATE.fr.md", "BACKLOG.fr.md" }),
+            ("en", new[] { "DOCTRINE.en.md", "spec-template.en.md", "AGENT_STATE.en.md", "BACKLOG.en.md" }),
         };
-        foreach (string t in Lint.LangBlacklist)
+        foreach ((string lang, string[] files) in parLocale)
         {
-            foreach (string text in texts)
+            foreach (string f in files)
             {
-                Check(!text.Contains(t, StringComparison.OrdinalIgnoreCase), $"resource sans « {t} »");
+                string text = Program.Resource(f);
+                foreach (string t in Lint.BlacklistFor(lang))
+                {
+                    Check(!text.Contains(t, StringComparison.OrdinalIgnoreCase), $"resource {f} sans « {t} »");
+                }
             }
         }
+
+        Check(Program.Resource("spec-template.en.md").Contains("Owner", StringComparison.Ordinal),
+              "le template EN dit « Owner » (légitime en projet anglophone)");
+        Check(!Lint.BlacklistFor("en").Contains("owner", StringComparer.OrdinalIgnoreCase),
+              "« owner » hors liste noire pour un projet EN (D3 v1.1)");
+        Check(Lint.BlacklistFor("fr").Contains("owner", StringComparer.OrdinalIgnoreCase),
+              "« owner » en liste noire pour un projet FR (D3)");
 
         string dirVide = FreshProject(sandbox, "i18n-adopt");
         var (_, adoptOut) = RunCli(dirVide, "adopt", "--projet", "propre");
@@ -762,14 +779,21 @@ public static class Tests
             Check(!adoptOut.Contains(t, StringComparison.OrdinalIgnoreCase), $"sortie adopt sans « {t} »");
         }
 
-        string dirDet = MakeFixture(sandbox, "l008",
-            "# Spec\n## Historique\n- v1.0 : x\n\n## Notes\n\nIdée pospuesta et un hallazgo isolé, plus des hallazgos divers, ratifié par l'owner ; « Lee … y continúa » et sa cabecera aussi.\n");
-        var (exit, output) = RunLint(dirDet);
-        Check(exit == 0, "L008 est un warning : ne bloque pas");
-        Check(output.Contains("SDD-L008", StringComparison.Ordinal)
-              && output.Contains("langue non conforme au pin D3", StringComparison.Ordinal),
+        string contenu = "# Spec\n## Historique\n- v1.0 : x\n\n## Notes\n\nIdée pospuesta et un hallazgo isolé, "
+            + "plus des hallazgos divers, ratifié par l'owner ; « Lee … y continúa » et sa cabecera aussi.\n";
+
+        string dirFr = MakeFixture(sandbox, "l008-fr", contenu, lang: "fr");
+        var (exitFr, outFr) = RunLint(dirFr);
+        Check(exitFr == 0, "L008 est un warning : ne bloque pas");
+        Check(outFr.Contains("SDD-L008", StringComparison.Ordinal)
+              && outFr.Contains("langue non conforme à la locale du projet", StringComparison.Ordinal),
               "SDD-L008 signalé (un warning par terme présent)");
-        Check(output.Contains("6 warnings", StringComparison.Ordinal), "6 warnings — tous les termes de la liste noire détectés (BUK-017)");
+        Check(outFr.Contains("6 warnings", StringComparison.Ordinal), "projet FR : les 6 termes sont détectés");
+
+        string dirEn = MakeFixture(sandbox, "l008-en", contenu, lang: "en");
+        var (_, outEn) = RunLint(dirEn);
+        Check(outEn.Contains("5 warnings", StringComparison.Ordinal),
+              "projet EN : 5 warnings — « owner » est légitime en anglais");
     }
 
     private static void Test_Decide_Idempotence(string sandbox)
@@ -787,7 +811,7 @@ public static class Tests
         Check(e2 == 0, "decide #2 (texte identique) → exit 0");
         Check(out2.Contains("no-op", StringComparison.Ordinal), "decide #2 déclaré no-op");
         Check(RatifEntries() == 1, "toujours 1 seule entrée Historique (zéro duplicat)");
-        Check(Read(specPath).Contains("**Version** : 1.1", StringComparison.Ordinal), "un seul bump (v1.1)")
+        Check(Regex.IsMatch(Read(specPath), @"\*\*Version\*\*\s*: 1\.1"), "un seul bump (v1.1)")
             ;
         int commits = Git.Run(dir, "rev-list", "--count", "HEAD").stdout.Trim() is var n && int.TryParse(n, out int c) ? c : 0;
         RunCli(dir, "decide", "SPEC-PORTAIL-CITOYEN", "D1", "Même texte.", "--ratifiee");
@@ -995,10 +1019,122 @@ public static class Tests
             return;
         }
 
-        var (exit, output) = RunProcess("bash", startup, script);
-        Check(exit == 0, "demo.sh exit 0 (scénario complet + auto-vérification)");
-        Check(output.Contains("OK — dashboard.txt matches the real output", StringComparison.Ordinal),
-              "dashboard.txt auto-vérifié contre la sortie réelle de sdd status");
+        foreach (string lang in new[] { "en", "fr" })
+        {
+            var (exit, output) = RunProcess("bash", startup, script, lang);
+            Check(exit == 0, $"demo.sh {lang} exit 0 (scénario complet + auto-vérification)");
+            Check(output.Contains($"matches the real output of sdd status ({lang})", StringComparison.Ordinal),
+                  $"dashboard.{lang}.txt auto-vérifié contre la sortie réelle de sdd status");
+        }
+    }
+
+    // ---------- v1.1 : locale par projet ----------
+
+    private static void Test_Locale_Fr(string sandbox)
+    {
+        Console.WriteLine("T40 — sdd init --lang fr : artefacts FR complets (doctrine v1.1)");
+        string dir = FreshProject(sandbox, "locale-fr");
+        var (exit, _) = RunCli(dir, "init", "--projet", "test-fr", "--lang", "fr");
+        Check(exit == 0, "exit 0");
+
+        string toml = Read(Path.Combine(dir, "sdd.toml"));
+        Check(toml.Contains("lang = \"fr\"", StringComparison.Ordinal), "sdd.toml : lang = fr");
+        Check(toml.Contains("version = \"1.1\"", StringComparison.Ordinal), "sdd.toml : pin doctrine v1.1");
+
+        string doctrine = Read(Path.Combine(dir, "docs", "DOCTRINE.md"));
+        Check(doctrine.StartsWith("# Doctrine SDD-Kit v1.1\n", StringComparison.Ordinal), "DOCTRINE FR : en-tête v1.1");
+        Check(doctrine.Contains("11. **Séparation des namespaces**", StringComparison.Ordinal)
+              && doctrine.Contains("14. **Mémoire volatile**", StringComparison.Ordinal),
+              "DOCTRINE FR : règles #11–#14 présentes");
+        Check(doctrine.Contains("*Exemple*", StringComparison.Ordinal) && doctrine.Contains("*Anti-pattern*", StringComparison.Ordinal),
+              "DOCTRINE FR : exemple + anti-pattern sur les règles nouvelles");
+
+        string state = Read(Path.Combine(dir, "docs", "AGENT_STATE.md"));
+        Check(state.Contains("Lis docs/AGENT_STATE.md et continue", StringComparison.Ordinal)
+              && state.Contains("## Spécifications en vol", StringComparison.Ordinal), "AGENT_STATE FR complet");
+
+        string backlog = Read(Path.Combine(dir, "docs", "BACKLOG.md"));
+        Check(backlog.Contains("Toute idée reportée s'enregistre ici dans le commit qui la pose.", StringComparison.Ordinal),
+              "BACKLOG FR : règle anti-oubli littérale");
+    }
+
+    private static void Test_Locale_En(string sandbox)
+    {
+        Console.WriteLine("T41 — --lang en + sdd new suit la locale déclarée du projet");
+        string dirEn = FreshProject(sandbox, "locale-en");
+        RunCli(dirEn, "init", "--projet", "test-en", "--lang", "en");
+        RunCli(dirEn, "new", "DEMO");
+        string specEn = Read(Path.Combine(dirEn, "docs", "specs", "SPEC-DEMO.md"));
+        Check(specEn.StartsWith("# Specification: DEMO\n", StringComparison.Ordinal), "spec EN : titre anglais");
+        Check(specEn.Contains("**Status**: Draft", StringComparison.Ordinal), "spec EN : statut Draft");
+        Check(specEn.Contains("**Given**", StringComparison.Ordinal) && specEn.Contains("**Then**", StringComparison.Ordinal),
+              "spec EN : quatuor GWT anglais");
+        Check(specEn.Contains("## History", StringComparison.Ordinal) && specEn.Contains("## Decisions", StringComparison.Ordinal),
+              "spec EN : sections anglaises");
+        Check(specEn.Contains("[TO RATIFY]", StringComparison.Ordinal), "spec EN : placeholders [TO RATIFY]");
+        Check(Read(Path.Combine(dirEn, "docs", "AGENT_STATE.md")).Contains("— Draft v1.0", StringComparison.Ordinal),
+              "AGENT_STATE EN : entrée en vol « Draft »");
+
+        string dirFr = FreshProject(sandbox, "locale-fr-new");
+        RunCli(dirFr, "init", "--projet", "test-fr", "--lang", "fr");
+        RunCli(dirFr, "new", "DEMO");
+        string specFr = Read(Path.Combine(dirFr, "docs", "specs", "SPEC-DEMO.md"));
+        Check(specFr.StartsWith("# Spécification : DEMO\n", StringComparison.Ordinal), "spec FR : titre français");
+        Check(specFr.Contains("[À RATIFIER]", StringComparison.Ordinal), "spec FR : placeholders [À RATIFIER]");
+        Check(Read(Path.Combine(dirFr, "docs", "AGENT_STATE.md")).Contains("— Brouillon v1.0", StringComparison.Ordinal),
+              "AGENT_STATE FR : entrée en vol « Brouillon »");
+    }
+
+    private static void Test_Lint_Bilingue(string sandbox)
+    {
+        Console.WriteLine("T42 — lint bilingue : spec EN en projet FR et spec FR en projet EN → 0 erreur");
+        const string specEn = "# Specification: EN\n**Version**: 1.0 (Draft)\n**Status**: Draft\n\n"
+            + "## History\n- v1.0 (2026-01-01): initial Draft\n\n"
+            + "## Functional requirements\n\n### REQ-EN01: thing\n**Given** a\n**When** b\n**Then** c\n\n"
+            + "## Phases\n\n| Phase | Content | Visible milestone | Status |\n|---|---|---|---|\n"
+            + "| P1 | x | milestone ok | Draft |\n\n"
+            + "## Decisions\n\n- **D1** choice — ratified\n";
+        const string specFr = "# Spécification : FR\n**Version** : 1.0 (Brouillon)\n**Statut** : Brouillon\n\n"
+            + "## Historique\n- v1.0 (2026-01-01) : Brouillon initial\n\n"
+            + "## Exigences fonctionnelles\n\n### REQ-FR01 : chose\n**Étant donné** a\n**Quand** b\n**Alors** c\n\n"
+            + "## Phases\n\n| Phase | Contenu | Jalon visible | Statut |\n|---|---|---|---|\n"
+            + "| P1 | x | jalon ok | Brouillon |\n\n"
+            + "## Décisions\n\n- **D1** choix — ratifiée\n";
+
+        string dirFr = FreshProject(sandbox, "cross-fr");
+        RunCli(dirFr, "init", "--projet", "cross-fr", "--lang", "fr");
+        File.WriteAllText(Path.Combine(dirFr, "docs", "specs", "SPEC-EN.md"), specEn);
+        Check(Capture(dirFr, "lint").Contains("0 erreurs", StringComparison.Ordinal),
+              "spec EN dans un projet FR : 0 erreur de motif FR");
+
+        string dirEn = FreshProject(sandbox, "cross-en");
+        RunCli(dirEn, "init", "--projet", "cross-en", "--lang", "en");
+        File.WriteAllText(Path.Combine(dirEn, "docs", "specs", "SPEC-FR.md"), specFr);
+        Check(Capture(dirEn, "lint").Contains("0 erreurs", StringComparison.Ordinal),
+              "spec FR dans un projet EN : 0 erreur de motif EN");
+    }
+
+    private static void Test_Lang_Args(string sandbox)
+    {
+        Console.WriteLine("T43 — --lang : validation, défaut et persistance par adopt");
+        string dirBad = FreshProject(sandbox, "lang-bad");
+        Check(RunCli(dirBad, "init", "--projet", "p", "--lang", "de").exit != 0, "langue inconnue → refus");
+        Check(RunCli(dirBad, "init", "--projet", "p", "--lang").exit != 0, "--lang sans valeur → refus");
+        Check(RunCli(dirBad, "init", "--projet", "p", "--inconnu").exit != 0, "argument inconnu → refus");
+        Check(!File.Exists(Path.Combine(dirBad, "sdd.toml")), "aucun artefact créé après refus");
+
+        string dirDef = FreshProject(sandbox, "lang-default");
+        RunCli(dirDef, "init", "--projet", "p");
+        Check(Read(Path.Combine(dirDef, "sdd.toml")).Contains("lang = \"en\"", StringComparison.Ordinal),
+              "défaut documenté : lang = en");
+
+        string dirAdopt = FreshProject(sandbox, "lang-adopt");
+        RunCli(dirAdopt, "adopt", "--projet", "p", "--lang", "fr");
+        Check(Read(Path.Combine(dirAdopt, "sdd.toml")).Contains("lang = \"fr\"", StringComparison.Ordinal),
+              "adopt --lang fr persiste la locale");
+        Check(Read(Path.Combine(dirAdopt, "docs", "DOCTRINE.md")).StartsWith("# Doctrine SDD-Kit v1.1", StringComparison.Ordinal),
+              "adopt --lang fr génère la doctrine FR");
+        Check(RunCli(dirAdopt, "adopt", "--projet", "p", "--lang", "xx").exit != 0, "adopt langue invalide → refus");
     }
 
     /// <summary>Lance un exécutable externe et capture stdout+stderr (l'exemple est un script bash).</summary>
