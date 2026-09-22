@@ -64,7 +64,7 @@ dotnet run --project tests/Sdd.Tests   # 231 assertions, exit ≠ 0 on failure
 
 Zero NuGet dependencies: BCL only + an integrated assertion runner (no xunit on purpose — justification in commit history).
 
-The repo dogfoods itself: GitHub Actions runs the test suite, the `hello-sdd` example and `sdd lint --ci` on every push; the CI gate is the same workflow `sdd init` generates.
+The repo dogfoods itself: GitHub Actions runs the test suite (which replays the `hello-sdd` example) and `sdd lint --ci` on every push; the CI gate is the same workflow `sdd init` generates.
 
 ---
 
@@ -124,4 +124,4 @@ dotnet build tests/Sdd.Tests
 dotnet run --project tests/Sdd.Tests   # 231 assertions, exit ≠ 0 si échec
 ```
 
-Zéro dépendance NuGet : BCL seul + runner d'assertions intégré (justification dans l'historique). Le repo dogfoode son propre workflow CI (tests + exemple hello-sdd + lint sur chaque push/PR).
+Zéro dépendance NuGet : BCL seul + runner d'assertions intégré (justification dans l'historique). Le repo dogfoode son propre workflow CI (tests — dont l'exemple hello-sdd — + lint sur chaque push/PR).

@@ -6,7 +6,8 @@
 
 The script scaffolds a throwaway project, prints the dashboard and the referee
 output, then verifies that `dashboard.txt` below still matches the tool's **real**
-output. CI runs the same script, so the documented dashboard cannot drift.
+output. The test suite re-runs this script (and CI runs the suite), so the
+documented dashboard cannot drift.
 
 Or by hand (requires .NET SDK 10; `sdd` installed, or run it from the repo):
 

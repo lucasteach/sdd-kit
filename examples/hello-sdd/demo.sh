@@ -39,7 +39,8 @@ sdd_cli lint
 echo
 
 # The documented dashboard must not be able to lie: it is produced by the tool,
-# never written by hand. CI runs this script, so drift fails the gate.
+# never written by hand. The test suite runs this script (and CI runs the suite),
+# so any drift fails the gate.
 sdd_cli status > "$WORK/status.reel.txt"
 if [ -f "$HERE/dashboard.txt" ]; then
   if diff -u "$HERE/dashboard.txt" "$WORK/status.reel.txt" >/dev/null; then

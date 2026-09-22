@@ -6,7 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: 
 ## [1.0.8] - 2026-09-21
 ### Added
 - Couche d'accueil publique : `CHANGELOG.md`, `SECURITY.md` (divulgation privée via GitHub, accusé ≤ 48 h, divulgation coordonnée), `CONTRIBUTING.md` (issues bienvenues, PRs externes non acceptées pour l'instant).
-- `examples/hello-sdd/` : premier projet SDD en 2 minutes. `demo.sh` **auto-vérifie** que `dashboard.txt` correspond à la sortie réelle de `sdd status`, et la CI exécute ce script — le dashboard documenté ne peut donc pas mentir.
+- `examples/hello-sdd/` : premier projet SDD en 2 minutes. `demo.sh` **auto-vérifie** que `dashboard.txt` correspond à la sortie réelle de `sdd status` ; la suite de tests rejoue ce script (et la CI exécute la suite) — le dashboard documenté ne peut donc pas mentir.
 - Suite de tests portée à **231 assertions** (T39 : l'exemple est rejoué et son dashboard vérifié à chaque exécution de la suite).
 ### Changed
 - Distribution **publique, libre et sans authentification** (MIT) : le `.nupkg` est téléchargeable via GitHub Releases. GitHub Packages est écarté comme canal public (un PAT y est requis même pour un paquet public) ; nuget.org reste l'objectif pour l'installation en une commande.
