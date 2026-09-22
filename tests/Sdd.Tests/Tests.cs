@@ -672,9 +672,19 @@ public static class Tests
         }
     }
 
+    /// <summary>
+    /// Exécute `lint --ci` et renvoie seulement le code de sortie. La sortie est
+    /// capturée (jamais écrite sur le vrai stdout) : sous GitHub Actions, les
+    /// fixtures d'erreur émettraient sinon des annotations `::error` qui
+    /// passeraient pour de vraies erreurs du dépôt dans le log de CI.
+    /// </summary>
     private static int CaptureExit(string dir)
     {
         string previous = Directory.GetCurrentDirectory();
+        TextWriter originalOut = Console.Out;
+        TextWriter originalErr = Console.Error;
+        Console.SetOut(new StringWriter());
+        Console.SetError(new StringWriter());
         try
         {
             Directory.SetCurrentDirectory(dir);
@@ -682,6 +692,8 @@ public static class Tests
         }
         finally
         {
+            Console.SetOut(originalOut);
+            Console.SetError(originalErr);
             Directory.SetCurrentDirectory(previous);
         }
     }
