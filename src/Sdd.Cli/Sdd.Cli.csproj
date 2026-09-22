@@ -32,6 +32,9 @@
   <ItemGroup>
     <EmbeddedResource Include="resources/DOCTRINE.md" />
     <EmbeddedResource Include="resources/SPEC-template.md" />
+    <!-- WithCulture=false : sinon MSBuild lit « .fr »/« .en » comme une culture -->
+    <EmbeddedResource Include="resources/DOCTRINE.fr.md" WithCulture="false" />
+    <EmbeddedResource Include="resources/DOCTRINE.en.md" WithCulture="false" />
   </ItemGroup>
 
 </Project>
