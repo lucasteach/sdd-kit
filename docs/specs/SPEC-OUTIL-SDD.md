@@ -1,5 +1,5 @@
 # Spécification : Outil SDD (méthodologie + CLI)
-**Version** : 1.1 (Brouillon — P1 approuvée par le responsable 2026-09-16)
+**Version** : 1.2 (Brouillon — P1 approuvée par le responsable 2026-09-16)
 **Statut** : Brouillon
 **Créée** : 2026-09-16
 **Responsable** : responsable du projet
@@ -7,6 +7,7 @@
 ## Historique
 - v1.0 (16/09/2026) : Brouillon initial
 - v1.1 (16/09/2026) : D1-D7 ratifiées par le responsable
+- v1.2 (21/09/2026) : décision D6 ratifiée par le responsable
 
 ## Propos
 
@@ -229,7 +230,7 @@ avant P4, et seulement si le dogfooding démontre l'utilité.
 - **D3** Langue des templates : FR par défaut, EN optionnelle v1 — **RATIFIÉE 16/09**
 - **D4** Sévérité des règles : telles que REQ-CLI04 — **RATIFIÉE 16/09**
 - **D5** Versionado de doctrine : semver classique — **RATIFIÉE 16/09**
-- **D6** Publication : feed interne de l'organisation v1 ; nuget.org conditionnel v2 — **RATIFIÉE 16/09**
+- **D6** Publication publique : depot GitHub public sous licence MIT, .nupkg telechargeable librement sans authentification (GitHub Releases) ; GitHub Packages ecarte (PAT requis meme en public) ; nuget.org pour l'installation en une commande. — **RATIFIÉE 21/09**
 - **D7** Licence : MIT — **RATIFIÉE 16/09**
 
 ## Impacts
