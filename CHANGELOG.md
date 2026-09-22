@@ -3,6 +3,22 @@
 All notable changes to `sdd` (SDD-Kit CLI) are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) · Versioning: [SemVer](https://semver.org/) (decision D5).
 
+## [1.1.0] - 2026-09-21
+### Added
+- **Locale par projet** : `sdd init --projet <nom> --lang fr|en` et `sdd adopt --projet <nom> --lang fr|en` ; `sdd.toml` porte `[projet] lang`, **défaut `en`**. `sdd new` génère le template de la langue déclarée.
+- **Artefacts bilingues embarqués** : `DOCTRINE`, `spec-template`, `AGENT_STATE` et `BACKLOG` existent en `resources/*.fr.md` et `resources/*.en.md` (les deux fichiers sont embarqués dans le `.nupkg`, `WithCulture=false`).
+- **Doctrine v1.1** : règles dures #11 (séparation des namespaces `Dn`/`#N`), #12 (audit forensique avant affirmation), #13 (mémoire d'agent = cache), #14 (mémoire volatile, AGENT_STATE < 5 Ko) — dans **les deux langues dès le départ**, chacune avec exemple et anti-pattern.
+- **Lint bilingue** : SDD-L001 (`Étant donné/Given`…), L002 (statuts FR/EN), L004 (`origine/origin`, `ouvert/closed`), L007 (`Historique/History`) et L008 (liste noire selon la locale) — une spec EN ne casse pas en projet FR et inversement.
+- `README.fr.md` : traduction française complète ; `README.md` reste la version primaire (anglais) avec lien croisé.
+- Exemple `hello-sdd` bilingue : `demo.sh [fr|en]` et un dashboard de référence par langue (`dashboard.fr.txt`, `dashboard.en.txt`), toujours auto-vérifiés.
+### Changed
+- Lecture des artefacts élargie aux intitulés anglais dans `status`, `decide`, `trace` et `agent-brief` (statut, historique, décisions) — les **messages** de la CLI et le dashboard ASCII restent en français (localisation reportée en v1.2).
+- Parseur d'identifiant REQ robuste (`### REQ-…01:` sans espace, convention anglaise) dans le lint, `trace` et `agent-brief`.
+- Doctrine embarquée : pin passée de `1.0` à `1.1`.
+### Fixed
+- Les ressources `.fr.md`/`.en.md` étaient traitées comme des cultures par MSBuild et déportées en satellite assemblies (nom logique identique, donc introuvable) ; `WithCulture=false` les ramène dans l'assembly principale.
+- Suite de tests portée à **280 assertions** (T40–T43 : locale FR, locale EN, lint croisé, validation de `--lang`).
+
 ## [1.0.8] - 2026-09-21
 ### Added
 - Couche d'accueil publique : `CHANGELOG.md`, `SECURITY.md` (divulgation privée via GitHub, accusé ≤ 48 h, divulgation coordonnée), `CONTRIBUTING.md` (issues bienvenues, PRs externes non acceptées pour l'instant).

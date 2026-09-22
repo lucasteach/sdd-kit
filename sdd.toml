@@ -1,9 +1,10 @@
 # sdd.toml — métadonnées du projet sdd-kit (dogfooding : le repo applique ses propres regles)
 [projet]
 nom = "sdd-kit"
+lang = "fr"   # les specs internes du projet restent en français
 
 [doctrine]
-version = "1.0"
+version = "1.1"
 
 # Registre de waivers (justification ecrite — REQ-CLI04, niveau « waivable »)
 [[waiver]]
