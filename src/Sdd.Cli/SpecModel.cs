@@ -78,6 +78,36 @@ public sealed class SpecModel
 
     public int SectionStart(string header) => FindLine(header) + 1;
 
+    /// <summary>Première section trouvée parmi plusieurs titres acceptés (FR/EN).</summary>
+    public int SectionStartAny(params string[] headers)
+    {
+        foreach (string h in headers)
+        {
+            int i = FindLine(h);
+            if (i >= 0)
+            {
+                return i + 1;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>Ligne d'un titre accepté (FR/EN), ou -1.</summary>
+    public int FindLineAny(params string[] headers)
+    {
+        foreach (string h in headers)
+        {
+            int i = FindLine(h);
+            if (i >= 0)
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
     public int SectionEnd(int start)
     {
         for (int i = start; i < Lines.Count; i++)
@@ -95,7 +125,7 @@ public sealed class SpecModel
     public List<(int Index, string Text)> DecisionLines()
     {
         var result = new List<(int, string)>();
-        int start = SectionStart("## Décisions");
+        int start = SectionStartAny("## Décisions", "## Decisions");
         if (start <= 0)
         {
             return result;
@@ -135,7 +165,8 @@ public sealed class SpecModel
                 end--;
             }
 
-            string id = Lines[start].Substring(4).Split(' ')[0];
+            string id = System.Text.RegularExpressions.Regex
+                .Match(Lines[start], @"^###\s+(REQ-[A-Za-z0-9-]+)").Groups[1].Value;
             blocks.Add((id, start, end));
         }
 

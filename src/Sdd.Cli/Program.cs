@@ -13,7 +13,7 @@ namespace Sdd;
 /// </summary>
 public static class Program
 {
-    public const string DoctrineVersion = "1.0";
+    public const string DoctrineVersion = "1.1";
 
     public static int Main(string[] args)
     {
@@ -89,10 +89,13 @@ public static class Program
             sdd — SDD-Kit CLI (v1 complète : P1–P4)
 
             Usage :
-              sdd init --projet <nom>    initialise un projet SDD greenfield dans le cwd
-              sdd adopt --projet <nom>   onramp brownfield : audit → BACKLOG, puis infrastructures SDD
-              sdd new <FAMILLE>          crée docs/specs/SPEC-<FAMILLE>.md (Brouillon,
-                                         placeholders [À RATIFIER], zéro prose inventée)
+              sdd init --projet <nom> [--lang fr|en]
+                                         initialise un projet SDD greenfield dans le cwd
+                                         (artefacts générés dans la langue du projet ; défaut en)
+              sdd adopt --projet <nom> [--lang fr|en]
+                                         onramp brownfield : audit → BACKLOG, puis infrastructures SDD
+              sdd new <FAMILLE>          crée docs/specs/SPEC-<FAMILLE>.md dans la langue du projet
+                                         (Brouillon, placeholders, zéro prose inventée)
               sdd lint [--ci]            arbitre SDD-L001..L008 (--ci : sortie condensée + exit code CI)
               sdd status                 tableau ASCII normatif (Annexe A)
               sdd decide <SPEC> <Dn> "<texte>" --ratifiee
@@ -112,13 +115,39 @@ public static class Program
 
     private static int Init(string[] args)
     {
-        if (args.Length != 2 || args[0] != "--projet" || string.IsNullOrWhiteSpace(args[1]))
+        string? nom = null;
+        string lang = Locale.Default;
+        for (int i = 0; i < args.Length; i++)
         {
-            Err("usage : sdd init --projet <nom>");
+            if (args[i] == "--projet" && i + 1 < args.Length)
+            {
+                nom = args[++i];
+            }
+            else if (args[i] == "--lang" && i + 1 < args.Length)
+            {
+                lang = args[++i];
+            }
+            else
+            {
+                Err($"argument inconnu : « {args[i]} » — usage : sdd init --projet <nom> [--lang {Locale.Describe()}]");
+                return 1;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(nom))
+        {
+            Err($"usage : sdd init --projet <nom> [--lang {Locale.Describe()}]");
             return 1;
         }
 
-        string nom = args[1];
+        if (!Locale.IsSupported(lang))
+        {
+            Err($"langue invalide : « {lang} » (attendu : {Locale.Describe()})");
+            return 1;
+        }
+
+        lang = Locale.Normalize(lang);
+
         if (!Regex.IsMatch(nom, @"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))
         {
             Err($"nom de projet invalide : « {nom} » (lettres, chiffres, point, tiret, underscore ; ≤ 64 caractères)");
@@ -126,7 +155,7 @@ public static class Program
         }
 
         string root = Directory.GetCurrentDirectory();
-        var files = Scaffold.Build(root, nom);
+        var files = Scaffold.Build(root, nom, lang);
 
         var conflicts = files.Keys.Where(File.Exists).ToList();
         if (conflicts.Count > 0)
@@ -151,7 +180,7 @@ public static class Program
         Console.WriteLine($"  créé  {Relative(root, specsDir)}/");
 
         Console.WriteLine();
-        Console.WriteLine($"Projet SDD « {nom} » initialisé (doctrine v{DoctrineVersion} pin).");
+        Console.WriteLine($"Projet SDD « {nom} » initialisé (langue {lang}, doctrine v{DoctrineVersion} pin).");
         Console.WriteLine("Premier réflexe : commit initial contenant tous ces artefacts, puis `sdd new <FAMILLE>`.");
         return 0;
     }
@@ -180,6 +209,9 @@ public static class Program
             return 1;
         }
 
+        // artefacts générés dans la langue déclarée par le projet (défaut : en)
+        string lang = TomlLite.Load(root).EffectiveLang;
+
         string date = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         string target = Path.Combine(root, "docs", "specs", $"SPEC-{famille}.md");
         if (File.Exists(target))
@@ -188,26 +220,26 @@ public static class Program
             return 1;
         }
 
-        string content = Resource("SPEC-template.md")
+        string content = Resource($"spec-template.{lang}.md")
             .Replace("{{FAMILLE}}", famille)
             .Replace("{{DATE}}", date);
 
         Write(target, content);
-        Console.WriteLine($"  créé  {Relative(root, target)}");
+        Console.WriteLine($"  créé  {Relative(root, target)}  ({lang})");
 
         string agentState = Path.Combine(root, "docs", "AGENT_STATE.md");
-        if (RegisterInFlight(agentState, famille, date))
+        if (RegisterInFlight(agentState, famille, date, lang))
         {
             Console.WriteLine($"  mis à jour  {Relative(root, agentState)} (spécification en vol)");
         }
 
         Console.WriteLine();
-        Console.WriteLine("Brouillon squelette : chaque [À RATIFIER] est du texte à écrire par l'humain, jamais par l'outil.");
+        Console.WriteLine("Brouillon squelette : chaque placeholder est du texte à écrire par l'humain, jamais par l'outil.");
         Console.WriteLine($"Prochaine étape : ratification par le responsable, puis commit « docs({famille.ToLowerInvariant()}): ... ».");
         return 0;
     }
 
-    private static bool RegisterInFlight(string agentStatePath, string famille, string date)
+    private static bool RegisterInFlight(string agentStatePath, string famille, string date, string lang)
     {
         if (!File.Exists(agentStatePath))
         {
@@ -215,13 +247,14 @@ public static class Program
         }
 
         string text = File.ReadAllText(agentStatePath);
-        string entry = $"- SPEC-{famille}.md — Brouillon v1.0 ({date}) — [À RATIFIER]";
-        if (text.Contains($"SPEC-{famille}.md — Brouillon"))
+        string entry = Scaffold.InFlightEntry(lang, famille, date);
+        string marker = Scaffold.EnVolMarker(lang);
+        string section = Scaffold.InFlightSection(lang);
+        if (text.Contains($"SPEC-{famille}.md —", StringComparison.Ordinal))
         {
-            return false; // déjà consignée
+            return false; // déjà consignée (Brouillon ou Draft, selon la locale)
         }
 
-        const string section = "## Spécifications en vol";
         int idx = text.IndexOf(section, StringComparison.Ordinal);
         if (idx < 0)
         {
@@ -229,10 +262,10 @@ public static class Program
             return true;
         }
 
-        int markerPos = text.IndexOf(Scaffold.EnVolMarker, StringComparison.Ordinal);
+        int markerPos = text.IndexOf(marker, StringComparison.Ordinal);
         if (markerPos >= 0 && markerPos > idx)
         {
-            text = text.Replace(Scaffold.EnVolMarker, entry);
+            text = text.Replace(marker, entry);
         }
         else
         {

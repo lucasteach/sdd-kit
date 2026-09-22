@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>sdd</AssemblyName>
     <RootNamespace>Sdd</RootNamespace>
-    <Version>1.0.8</Version>
+    <Version>1.1.0</Version>
     <PackageId>sdd</PackageId>
     <Description>SDD-Kit CLI v1 — doctrine, scaffold, arbitre, trace et contrat agent (init/new/lint/status/decide/trace/agent-brief/adopt)</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -29,12 +29,18 @@
     <None Include="../../README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <!-- WithCulture=false : sinon MSBuild lit « .fr »/« .en » comme une culture et
+       deplace les fichiers dans des satellite assemblies (nom logique identique,
+       inaccessible depuis l'assembly principale). -->
   <ItemGroup>
-    <EmbeddedResource Include="resources/DOCTRINE.md" />
-    <EmbeddedResource Include="resources/SPEC-template.md" />
-    <!-- WithCulture=false : sinon MSBuild lit « .fr »/« .en » comme une culture -->
     <EmbeddedResource Include="resources/DOCTRINE.fr.md" WithCulture="false" />
     <EmbeddedResource Include="resources/DOCTRINE.en.md" WithCulture="false" />
+    <EmbeddedResource Include="resources/spec-template.fr.md" WithCulture="false" />
+    <EmbeddedResource Include="resources/spec-template.en.md" WithCulture="false" />
+    <EmbeddedResource Include="resources/AGENT_STATE.fr.md" WithCulture="false" />
+    <EmbeddedResource Include="resources/AGENT_STATE.en.md" WithCulture="false" />
+    <EmbeddedResource Include="resources/BACKLOG.fr.md" WithCulture="false" />
+    <EmbeddedResource Include="resources/BACKLOG.en.md" WithCulture="false" />
   </ItemGroup>
 
 </Project>

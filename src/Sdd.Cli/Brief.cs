@@ -52,12 +52,12 @@ public static class Brief
             return 1;
         }
 
+        var meta = TomlLite.Load(root);
         string doctrinePath = Path.Combine(root, "docs", "DOCTRINE.md");
         string doctrine = File.Exists(doctrinePath)
             ? File.ReadAllText(doctrinePath).Replace("\r\n", "\n").TrimEnd()
-            : Resource("DOCTRINE.md").TrimEnd();
+            : Resource($"DOCTRINE.{meta.EffectiveLang}.md").TrimEnd();
         string doctrineVersion = Regex.Match(doctrine, @"v(\d+\.\d+)").Groups[1].Value;
-        var meta = TomlLite.Load(root);
 
         var reqs = spec.ReqBlocks()
             .Where(b => spec.PhaseMentions(current.Contenu, b.Id))
@@ -109,7 +109,9 @@ public static class Brief
 
         var decisions = spec.DecisionLines()
             .Where(d => d.Text.Contains("RATIFIÉE", StringComparison.OrdinalIgnoreCase)
-                        || d.Text.Contains("approuvée", StringComparison.OrdinalIgnoreCase))
+                        || d.Text.Contains("RATIFIED", StringComparison.OrdinalIgnoreCase)
+                        || d.Text.Contains("approuvée", StringComparison.OrdinalIgnoreCase)
+                        || d.Text.Contains("approved", StringComparison.OrdinalIgnoreCase))
             .ToList();
         o.AppendLine("## Décisions du responsable déjà ratifiées (contraintes, pas des suggestions)");
         o.AppendLine();

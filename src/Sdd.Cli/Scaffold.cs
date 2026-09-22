@@ -2,90 +2,66 @@ namespace Sdd;
 
 /// <summary>
 /// Genérateur des artefacts SDD (partage par `sdd init` et `sdd adopt`).
+/// Les contenus proviennent de ressources embarquées bilingues
+/// (resources/*.fr.md, resources/*.en.md) choisies selon la locale du projet.
 /// Aucun commit, aucune ecrasure : le contrat humain garde la main.
 /// </summary>
 public static class Scaffold
 {
-    public const string EnVolMarker = "_(aucune — `sdd new` ajoute une entrée ici)_";
+    /// <summary>Marqueur « aucune spec en vol » de la locale demandée.</summary>
+    public static string EnVolMarker(string? lang) => Locale.Normalize(lang) == "fr"
+        ? "_(aucune — `sdd new` ajoute une entrée ici)_"
+        : "_(none — `sdd new` adds an entry here)_";
+
+    /// <summary>Titre de la section « spécifications en vol » de la locale demandée.</summary>
+    public static string InFlightSection(string? lang) => Locale.Normalize(lang) == "fr"
+        ? "## Spécifications en vol"
+        : "## Specifications in flight";
+
+    /// <summary>Ligne consignée dans AGENT_STATE pour un Brouillon.</summary>
+    public static string InFlightEntry(string? lang, string famille, string date) => Locale.Normalize(lang) == "fr"
+        ? $"- SPEC-{famille}.md — Brouillon v1.0 ({date}) — [À RATIFIER]"
+        : $"- SPEC-{famille}.md — Draft v1.0 ({date}) — [TO RATIFY]";
 
     /// <summary>Fichiers a creer (chemin absolu -> contenu), sans toucher au disque.</summary>
-    public static Dictionary<string, string> Build(string root, string nom, string? backlogEntries = null, string? originNote = null) => new()
+    public static Dictionary<string, string> Build(string root, string nom, string? lang = null,
+        string? backlogEntries = null, string? originNote = null)
     {
-        [Path.Combine(root, "sdd.toml")] = Toml(nom, originNote),
-        [Path.Combine(root, "docs", "DOCTRINE.md")] = Program.Resource("DOCTRINE.md"),
-        [Path.Combine(root, "docs", "AGENT_STATE.md")] = AgentState(nom),
-        [Path.Combine(root, "docs", "BACKLOG.md")] = Backlog(nom, backlogEntries),
-        [Path.Combine(root, ".github", "workflows", "sdd-lint.yml")] = Workflow(),
-    };
+        string l = Locale.Normalize(lang);
+        return new()
+        {
+            [Path.Combine(root, "sdd.toml")] = Toml(nom, l, originNote),
+            [Path.Combine(root, "docs", "DOCTRINE.md")] = Program.Resource($"DOCTRINE.{l}.md"),
+            [Path.Combine(root, "docs", "AGENT_STATE.md")] = AgentState(nom, l),
+            [Path.Combine(root, "docs", "BACKLOG.md")] = Backlog(nom, backlogEntries, l),
+            [Path.Combine(root, ".github", "workflows", "sdd-lint.yml")] = Workflow(),
+        };
+    }
 
-    public static string Toml(string nom, string? originNote) =>
+    public static string Toml(string nom, string? lang, string? originNote) =>
         $"""
         # sdd.toml — métadonnées du projet (généré par `{(originNote ?? "sdd init")}`)
         [projet]
         nom = "{nom}"
+        lang = "{Locale.Normalize(lang)}"   # fr | en — langue des artefacts générés
 
         [doctrine]
         version = "{Program.DoctrineVersion}"  # pin : docs/DOCTRINE.md, embarqué verbatim par la CLI
 
         """;
 
-    public static string AgentState(string nom) =>
-        $"""
-        # AGENT_STATE — {nom}
+    public static string AgentState(string nom, string? lang = null) =>
+        Program.Resource($"AGENT_STATE.{Locale.Normalize(lang)}.md")
+            .Replace("{{PROJET}}", nom);
 
-        <!-- Mémoire de continuité inter-sessions. Source de vérité du repo. -->
-
-        ## Convention de reprise
-
-        Le **premier message** d'un nouveau chat sur ce projet doit être :
-
-        > « Lis docs/AGENT_STATE.md et continue »
-
-        ## État courant
-
-        | Champ | Valeur |
-        |---|---|
-        | Phase active | — |
-        | Spec de référence | — |
-        | Next action | — |
-
-        ## Spécifications en vol
-
-        {EnVolMarker}
-
-        ## Table des commits de session
-
-        <!-- Une ligne par session : hash, date, agent, résumé, prochaine action. -->
-
-        | Hash | Date | Agent | Résumé | Prochaine action |
-        |---|---|---|---|---|
-
-        """;
-
-    public static string Backlog(string nom, string? entries)
+    public static string Backlog(string nom, string? entries, string? lang = null)
     {
-        string text =
-            $"""
-            # BACKLOG — {nom}
-
-            Registre des idées, dettes et demandes reportées du projet.
-
-            ## Règle anti-oubli
-
-            > **Toute idée reportée s'enregistre ici dans le commit qui la pose.**
-
-            Quand une idée, amélioration ou correction est repoussée hors du périmètre
-            de la tâche en cours, elle est ajoutée à ce fichier **dans le même commit**
-            que celui qui la postpone. Aucune idée reportée ne vit uniquement dans une
-            conversation.
-
-            ## Entrées
-
-            <!-- Format : - [ ] (YYYY-MM-DD, origine) description → phase/version visée -->
-
-            """;
-        string tail = entries is { Length: > 0 } ? entries.TrimEnd() + "\n" : "_(vide)_\n";
-        return text + tail;
+        string l = Locale.Normalize(lang);
+        string vide = l == "fr" ? "_(vide)_" : "_(empty)_";
+        string tail = entries is { Length: > 0 } ? entries.TrimEnd() : vide;
+        return Program.Resource($"BACKLOG.{l}.md")
+            .Replace("{{PROJET}}", nom)
+            .Replace("{{ENTRIES}}", tail);
     }
 
     /// <summary>CI gate fonctionnel (REQ-CLI09) — tests + lint, avec guard

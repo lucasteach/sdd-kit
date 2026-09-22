@@ -84,9 +84,9 @@ public static class Decide
             manquants.Add("la ligne « **Version** : X.Y »");
         }
 
-        if (spec.FindLine("## Historique") < 0)
+        if (spec.FindLineAny("## Historique", "## History") < 0)
         {
-            manquants.Add("la section « ## Historique »");
+            manquants.Add("la section « ## Historique » / « ## History »");
         }
 
         if (manquants.Count > 0)
@@ -132,7 +132,7 @@ public static class Decide
 
         string histEntry = $"- v{newVer} ({now}) : décision {dId} ratifiée par le responsable";
         {
-            int histLine = spec.FindLine("## Historique");
+            int histLine = spec.FindLineAny("## Historique", "## History");
             int end = spec.SectionEnd(histLine + 1);
             int last = histLine;
             for (int i = histLine + 1; i < end; i++)

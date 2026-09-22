@@ -15,8 +15,15 @@ public static class TomlLite
     {
         public string Nom { get; set; } = "";
         public string Doctrine { get; set; } = "";
+
+        /// <summary>Locale du projet (« fr » | « en ») ; vide si absente du sdd.toml.</summary>
+        public string Lang { get; set; } = "";
+
         public List<Waiver> Waivers { get; } = new();
         public bool Found { get; set; }
+
+        /// <summary>Locale effective : déclarée si valide, sinon défaut (en).</summary>
+        public string EffectiveLang => Locale.Normalize(Lang);
     }
 
     public static ProjectMeta Load(string root)
@@ -42,6 +49,7 @@ public static class TomlLite
             {
                 case "projet":
                     if (key == "nom") meta.Nom = value;
+                    if (key == "lang") meta.Lang = value.Trim();
                     break;
                 case "doctrine":
                     if (key == "version") meta.Doctrine = value;

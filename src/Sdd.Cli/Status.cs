@@ -38,21 +38,24 @@ public static class Status
 
         // micro-fix audit II : « en vol » UNIQUEMENT depuis AGENT_STATE (aucune
         // heuristique de nom — tout fichier s'appelle SPEC-… — ni P1 forcé).
-        string enVolSpec = CellValue(agentState, "Spec de référence");
-        string phaseActive = CellValue(agentState, "Phase active");
+        string enVolSpec = CellValue(agentState, "Spec de référence", "Reference spec");
+        string phaseActive = CellValue(agentState, "Phase active", "Active phase");
         string enVolToken = SpecToken(enVolSpec) ?? "";
         string enVolName = specs.FirstOrDefault(s => s.Name == enVolToken)?.Name ?? "";
         string phaseId = Regex.Match(phaseActive, @"P\d+").Value;
 
-        // compteurs : dérivés SEULEMENT du **Statut** réel de chaque spec
+        // compteurs : dérivés SEULEMENT du **Statut** réel de chaque spec (FR ou EN)
         int brouillon = 0, approuvees = 0, enPhase = 0;
         foreach (SpecInfo s in specs)
         {
-            if (s.Statut.Contains("en phase", StringComparison.OrdinalIgnoreCase))
+            if (s.Statut.Contains("en phase", StringComparison.OrdinalIgnoreCase)
+                || s.Statut.Contains("in flight", StringComparison.OrdinalIgnoreCase)
+                || s.Statut.Contains("in phase", StringComparison.OrdinalIgnoreCase))
             {
                 enPhase++;
             }
-            else if (s.Statut.Contains("approuv", StringComparison.OrdinalIgnoreCase))
+            else if (s.Statut.Contains("approuv", StringComparison.OrdinalIgnoreCase)
+                     || s.Statut.Contains("approved", StringComparison.OrdinalIgnoreCase))
             {
                 approuvees++;
             }
@@ -68,11 +71,15 @@ public static class Status
             foreach (string line in s.DecisionLines)
             {
                 decTotal++;
-                if (line.Contains("ratifiée", StringComparison.OrdinalIgnoreCase) || line.Contains("approuvée", StringComparison.OrdinalIgnoreCase))
+                if (line.Contains("ratifiée", StringComparison.OrdinalIgnoreCase)
+                    || line.Contains("approuvée", StringComparison.OrdinalIgnoreCase)
+                    || line.Contains("ratified", StringComparison.OrdinalIgnoreCase)
+                    || line.Contains("approved", StringComparison.OrdinalIgnoreCase))
                 {
                     decRat++;
                 }
-                else if (line.Contains("différée", StringComparison.OrdinalIgnoreCase))
+                else if (line.Contains("différée", StringComparison.OrdinalIgnoreCase)
+                         || line.Contains("deferred", StringComparison.OrdinalIgnoreCase))
                 {
                     decDiff++;
                 }
@@ -106,7 +113,8 @@ public static class Status
         {
             if (line.StartsWith("## ", StringComparison.Ordinal))
             {
-                inTasks = line.StartsWith("## Tâches bornées", StringComparison.Ordinal);
+                inTasks = line.StartsWith("## Tâches bornées", StringComparison.Ordinal)
+                          || line.StartsWith("## Bounded tasks", StringComparison.Ordinal);
                 continue;
             }
 
@@ -220,7 +228,7 @@ public static class Status
 
     private static int ComputeProgress(string[] agentState, SpecInfo? vol, string phaseId)
     {
-        string progCell = CellValue(agentState, "Progression");
+        string progCell = CellValue(agentState, "Progression", "Progress");
         Match m = Regex.Match(progCell, @"(\d+)\s*%");
         if (m.Success)
         {
@@ -229,14 +237,16 @@ public static class Status
 
         if (vol is not null && vol.PhaseRows.Count > 0)
         {
-            int done = vol.PhaseRows.Count(r => r.Statut.Contains("approuvée", StringComparison.OrdinalIgnoreCase));
+            int done = vol.PhaseRows.Count(r => r.Statut.Contains("approuvée", StringComparison.OrdinalIgnoreCase)
+                                               || r.Statut.Contains("approuvee", StringComparison.OrdinalIgnoreCase)
+                                               || r.Statut.Contains("approved", StringComparison.OrdinalIgnoreCase));
             return (int)Math.Round(100.0 * done / vol.PhaseRows.Count);
         }
 
         return 0;
     }
 
-    private static string CellValue(string[] lines, string field)
+    private static string CellValue(string[] lines, params string[] fields)
     {
         foreach (string line in lines)
         {
@@ -248,7 +258,8 @@ public static class Status
             string[] cells = line.Split('|').Select(c => c.Trim()).ToArray();
             for (int i = 1; i + 1 < cells.Length; i++)
             {
-                if (cells[i].Replace("*", "") == field)
+                string key = cells[i].Replace("*", "");
+                if (fields.Any(f => key == f))
                 {
                     return cells[i + 1];
                 }
@@ -294,12 +305,13 @@ public static class Status
                     continue;
                 }
 
-                if (line.StartsWith("**Statut**", StringComparison.Ordinal))
+                if (line.StartsWith("**Statut**", StringComparison.Ordinal)
+                    || line.StartsWith("**Status**", StringComparison.Ordinal))
                 {
                     info.Statut = line.Substring(line.IndexOf(':') + 1).Trim();
                 }
 
-                if (line.StartsWith("## Décisions", StringComparison.Ordinal)) { inDecisions = true; inPhases = false; continue; }
+                if (line.StartsWith("## Décisions", StringComparison.Ordinal) || line.StartsWith("## Decisions", StringComparison.Ordinal)) { inDecisions = true; inPhases = false; continue; }
                 if (line.StartsWith("## Phases", StringComparison.Ordinal)) { inPhases = true; inDecisions = false; continue; }
                 if (line.StartsWith("## ", StringComparison.Ordinal)) { inDecisions = false; inPhases = false; }
 

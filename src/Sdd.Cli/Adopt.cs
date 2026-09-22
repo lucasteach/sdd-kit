@@ -28,13 +28,38 @@ public static class Adopt
     public static int Run(string root, string[] args, TextWriter? writer = null)
     {
         writer ??= Console.Out;
-        if (args.Length != 2 || args[0] != "--projet" || string.IsNullOrWhiteSpace(args[1]))
+        string? nom = null;
+        string lang = Locale.Default;
+        for (int i = 0; i < args.Length; i++)
         {
-            writer.WriteLine("usage : sdd adopt --projet <nom>   (dans le dossier du projet existant)");
+            if (args[i] == "--projet" && i + 1 < args.Length)
+            {
+                nom = args[++i];
+            }
+            else if (args[i] == "--lang" && i + 1 < args.Length)
+            {
+                lang = args[++i];
+            }
+            else
+            {
+                writer.WriteLine($"✖ argument inconnu : « {args[i]} » — usage : sdd adopt --projet <nom> [--lang {Locale.Describe()}]");
+                return 1;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(nom))
+        {
+            writer.WriteLine($"usage : sdd adopt --projet <nom> [--lang {Locale.Describe()}]   (dans le dossier du projet existant)");
             return 1;
         }
 
-        string nom = args[1];
+        if (!Locale.IsSupported(lang))
+        {
+            writer.WriteLine($"✖ langue invalide : « {lang} » (attendu : {Locale.Describe()})");
+            return 1;
+        }
+
+        lang = Locale.Normalize(lang);
         if (!Regex.IsMatch(nom, @"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$"))
         {
             writer.WriteLine($"✖ nom de projet invalide : « {nom} »");
@@ -64,8 +89,11 @@ public static class Adopt
         for (int i = 0; i < constats.Count; i++)
         {
             Constat h = constats[i];
+            string origine = lang == "fr" ? "origine" : "origin";
+            string prio = lang == "fr" ? "priorité" : "priority";
+            string triage = lang == "fr" ? "à trier en spec" : "to triage into a spec";
             backlogEntries.AppendLine(
-                $"- [ ] BUK-{i + 1:D3} ({date}, origine : {h.File}:{h.Line} — sdd adopt) {h.Kind} — {h.Description} (priorité {h.Priority}) → à trier en spec");
+                $"- [ ] BUK-{i + 1:D3} ({date}, {origine} : {h.File}:{h.Line} — sdd adopt) {h.Kind} — {h.Description} ({prio} {h.Priority}) → {triage}");
         }
 
         writer.WriteLine($"Audit brownfield « {nom} » — {files.Count} fichiers scannés.");
@@ -83,7 +111,7 @@ public static class Adopt
 
         writer.WriteLine($"  liens HTTP vérifiés : {linksChecked}" + (linksOffline > 0 ? $" — non vérifiés (hors-ligne/DNS) : {linksOffline}" : ""));
 
-        var artifacts = Scaffold.Build(root, nom,
+        var artifacts = Scaffold.Build(root, nom, lang,
             constats.Count > 0 ? backlogEntries.ToString() : null, originNote: "sdd adopt");
         string backlogPath = Path.Combine(root, "docs", "BACKLOG.md");
         bool entriesWritten = constats.Count == 0; // rien à écrire → rien à promettre
