@@ -23,32 +23,48 @@ The methodology was built empirically over 50+ agent↔owner sessions: spec befo
 
 The CLI never writes spec prose. Skeleton, referee, trace — decisions stay human.
 
-## Install
+## Try it
+
+`examples/hello-sdd/` scaffolds a throwaway project in two minutes, prints the
+dashboard, and checks that its own documented output is still the real one:
 
 ```bash
-# from a local build
-dotnet pack src/Sdd.Cli -c Release -o nupkg
-dotnet tool install -g sdd --add-source ./nupkg
-
-# from GitHub Packages (authenticated feed)
-dotnet nuget add source ghpackages \
-  --source-url https://nuget.pkg.github.com/lucasteach/index.json \
-  --username <your-gh-user> --password <classic-PAT-with-write:packages> --store-password-in-clear-text
-dotnet tool install -g sdd --source ghpackages
+bash examples/hello-sdd/demo.sh
 ```
 
-Requires .NET SDK 10 (TFM `net10.0`).
+## Install
+
+Public download, no account, no authentication: grab `sdd.<version>.nupkg` from
+[GitHub Releases](https://github.com/lucasteach/sdd-kit/releases) and install it
+from the folder that contains the file:
+
+```bash
+dotnet tool install -g sdd --add-source /path/to/folder/with/the/nupkg
+```
+
+From source:
+
+```bash
+dotnet pack src/Sdd.Cli -c Release -o nupkg
+dotnet tool install -g sdd --add-source ./nupkg
+```
+
+> `dotnet tool install -g sdd` without `--add-source` (NuGet.org) is the intended
+> one-command channel; it will be documented here once published. GitHub Packages
+> is **not** a free-download channel — it requires a PAT even for public packages.
+
+Requires .NET SDK 10 (TFM `net10.0`). Zero NuGet dependencies, no telemetry.
 
 ## Development
 
 ```bash
 dotnet build tests/Sdd.Tests
-dotnet run --project tests/Sdd.Tests   # 229 assertions, exit ≠ 0 on failure
+dotnet run --project tests/Sdd.Tests   # 231 assertions, exit ≠ 0 on failure
 ```
 
 Zero NuGet dependencies: BCL only + an integrated assertion runner (no xunit on purpose — justification in commit history).
 
-The repo dogfoods itself: GitHub Actions runs the test suite and `sdd lint --ci` on every push; the CI gate is the same workflow `sdd init` generates.
+The repo dogfoods itself: GitHub Actions runs the test suite, the `hello-sdd` example and `sdd lint --ci` on every push; the CI gate is the same workflow `sdd init` generates.
 
 ---
 
@@ -99,13 +115,13 @@ Crée `docs/specs/SPEC-<FAMILLE>.md` depuis le template canonique embarqué : to
 
 ## Cycle de release
 
-`dotnet pack -c Release -o nupkg` → `dotnet nuget push nupkg/sdd.<ver>.nupkg --source https://nuget.pkg.github.com/lucasteach/index.json --api-key <PAT-classique-write:packages>`. Semver classique (D5) ; licence MIT (D7) ; feed interne d'organisation (D6).
+`dotnet pack -c Release -o nupkg` → `git tag v<ver>` → release GitHub publique avec le `.nupkg` en pièce jointe (téléchargement libre, sans authentification). Publication NuGet.org optionnelle ensuite pour l'installation en une commande. Semver classique (D5) ; licence MIT (D7).
 
 ## Développement
 
 ```bash
 dotnet build tests/Sdd.Tests
-dotnet run --project tests/Sdd.Tests   # 229 assertions, exit ≠ 0 si échec
+dotnet run --project tests/Sdd.Tests   # 231 assertions, exit ≠ 0 si échec
 ```
 
-Zéro dépendance NuGet : BCL seul + runner d'assertions intégré (justification dans l'historique). Le repo dogfoode son propre workflow CI (tests + lint sur chaque push/PR).
+Zéro dépendance NuGet : BCL seul + runner d'assertions intégré (justification dans l'historique). Le repo dogfoode son propre workflow CI (tests + exemple hello-sdd + lint sur chaque push/PR).

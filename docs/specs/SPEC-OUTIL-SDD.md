@@ -2,7 +2,7 @@
 **Version** : 1.1 (Brouillon — P1 approuvée par le responsable 2026-09-16)
 **Statut** : Brouillon
 **Créée** : 2026-09-16
-**Responsable** : Owner
+**Responsable** : responsable du projet
 
 ## Historique
 - v1.0 (16/09/2026) : Brouillon initial
@@ -178,7 +178,7 @@ Trois pièces :
 Sortie attendue de `sdd status` (format exact, caractères box-drawing) :
 
 ```
-lucas@dev:~/projets/mon-projet$ sdd status
+dev@poste:~/projets/mon-projet$ sdd status
 ┌──────────────────────────────────────────────────────────────┐
 │  SDD-Kit · mon-projet                 doctrine v1.0 (pin)    │
 ├──────────────────────────────────────────────────────────────┤
@@ -195,7 +195,7 @@ lucas@dev:~/projets/mon-projet$ sdd status
 Sortie attendue de `sdd lint` (format exact) :
 
 ```
-lucas@dev:~/projets/mon-projet$ sdd lint
+dev@poste:~/projets/mon-projet$ sdd lint
 ✖ SDD-L003  référence fantasma
             AGENT_STATE.md:12 cite SPEC-INEXISTANTE.md —
             absente de docs/specs/

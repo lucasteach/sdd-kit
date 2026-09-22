@@ -59,6 +59,7 @@ public static class Tests
             Test_Args_Validees(sandbox);
             Test_TomlMultiLigne(sandbox);
             Test_PhaseMentions_Partage(sandbox);
+            Test_Exemple_HelloSdd(startup);
         }
         finally
         {
@@ -970,6 +971,47 @@ public static class Tests
         Check(!spec.PhaseMentions("`sdd init` du projet", "REQ-PM02"), "pas de fuite entre phases");
         Check(spec.PhaseMentions("arbitre SDD-L001..L008", "REQ-PM02"), "id ou mot-signature → matching");
         Check(!spec.PhaseMentions("phase sans rapport", "REQ-INCONNUE99"), "REQ absente → false, sans exception");
+    }
+
+    private static void Test_Exemple_HelloSdd(string startup)
+    {
+        Console.WriteLine("T39 — exemple hello-sdd : le script tourne et le dashboard documenté est réel");
+        string script = Path.Combine(startup, "examples", "hello-sdd", "demo.sh");
+        if (!File.Exists(script))
+        {
+            Console.WriteLine("  (non exécuté hors racine du repo — lancer `dotnet run` depuis la racine)");
+            return;
+        }
+
+        var (exit, output) = RunProcess("bash", startup, script);
+        Check(exit == 0, "demo.sh exit 0 (scénario complet + auto-vérification)");
+        Check(output.Contains("OK — dashboard.txt matches the real output", StringComparison.Ordinal),
+              "dashboard.txt auto-vérifié contre la sortie réelle de sdd status");
+    }
+
+    /// <summary>Lance un exécutable externe et capture stdout+stderr (l'exemple est un script bash).</summary>
+    private static (int exit, string output) RunProcess(string file, string workDir, params string[] args)
+    {
+        var psi = new System.Diagnostics.ProcessStartInfo(file)
+        {
+            WorkingDirectory = workDir,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        foreach (string a in args)
+        {
+            psi.ArgumentList.Add(a);
+        }
+
+        psi.Environment["DOTNET_NOLOGO"] = "1";
+        psi.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
+
+        using var proc = System.Diagnostics.Process.Start(psi)!;
+        string stdout = proc.StandardOutput.ReadToEnd();
+        string stderr = proc.StandardError.ReadToEnd();
+        proc.WaitForExit();
+        return (proc.ExitCode, stdout + stderr);
     }
 
     private static string[] Sample(string resource)

@@ -1,0 +1,11 @@
+┌──────────────────────────────────────────────────────────────┐
+│  SDD-Kit · hello-sdd                  doctrine v1.0 (pin)    │
+├──────────────────────────────────────────────────────────────┤
+│  SPECS            1   Brouillon 0 · Approuvée 0 · En phase 1 │
+│  DÉCISIONS        1   ratifiée 0 · différée 0 · ouverte 1    │
+│  BACKLOG          0   ouvert 0 · clos 0                      │
+│  TÂCHES BORNÉES   0   vertes 0 · rouges 0                    │
+├──────────────────────────────────────────────────────────────┤
+│  EN VOL   SPEC-HELLO · P1 ([À RATIFIER])            ◐ 0 %    │
+│  JALON    P1 — [À RATIFIER]                                  │
+└──────────────────────────────────────────────────────────────┘
